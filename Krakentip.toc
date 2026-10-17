@@ -1,0 +1,15 @@
+## Interface: 16001, 120105
+## Title: |cff4fd1c5Kraken|rtip
+## Notes: Enemies get a card in the game's own style, next to your mouse or where the game puts tooltips. Every other tooltip stays as it is.
+## Author: Bernhard
+## Version: 0.1.0
+## IconTexture: Interface\Icons\Ability_Hunter_SniperShot
+## AddonCompartmentFunc: Krakentip_OnAddonCompartmentClick
+## SavedVariables: KrakentipDB
+
+Core.lua
+Data.lua
+Widgets.lua
+Card.lua
+Hook.lua
+Options.lua
