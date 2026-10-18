@@ -98,6 +98,13 @@ function CreateFontFamily(name, members)
     return f
 end
 function Object:SetFontObject(f) rawset(self, "_size", f._size); rawset(self, "_family", f) end
+-- the game's own text object, a family whose Korean file isn't the one we'd guess
+GAME_ALPHABET_FILES = { roman = "Fonts\\FRIZQT__.TTF", russian = "Fonts\\FRIZQT___CYR.TTF", korean = "Fonts\\K_Pagetext.TTF",
+    simplifiedchinese = "Fonts\\ARHei.ttf", traditionalchinese = "Fonts\\bHEI01B.TTF" }
+GameFontHighlight = { _size = 12, GetFontObjectForAlphabet = function(_, a)
+    return { GetFont = function() return GAME_ALPHABET_FILES[a], 12, "" end }
+end }
+GameFontHighlightSmall = { _size = 10 }
 
 function CreateFrame(kind, name, parent, template)
     local f = new(kind or "Frame", parent, name)

@@ -278,6 +278,10 @@ local commands = {
         end
     end,
     compare = function() KT.Compare:Toggle() end,
+    fonts = function()
+        KT:Print("fonts:")
+        for _, line in ipairs(KT.Widgets.FontReport()) do KT:Print("  " .. line) end
+    end,
     width = function(arg)
         local n = tonumber(arg)
         if not n then return KT:Printf("Width of this look: %d%%. Use /kt width 0.6 to 1.6.", KT:Dim("w") * 100) end

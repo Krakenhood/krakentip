@@ -94,6 +94,7 @@ The game builds unit tooltips (creatures and players) on their own path, apart f
 | `/kt sample` | Show or hide the sample card |
 | `/kt blizzard` | Switch between the card and the game's own unit tooltips |
 | `/kt minimap` | Show or hide the minimap button |
+| `/kt fonts` | Which font file each alphabet (Latin, Cyrillic, Korean, Chinese) gets |
 
 ## Install
 

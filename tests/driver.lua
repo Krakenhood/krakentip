@@ -513,6 +513,21 @@ hover("rogue")
 check(rows():find("Иван", 1, true), "the target's name as it is: " .. rows())
 leave()
 UNITS.rogue.target = "player"
+SlashCmdList.KRAKENTIP("regular")
+hover("rogue")
+local files = {}
+for _, m in ipairs(F().name._family._members) do files[m.alphabet] = m.file end
+check(files.korean == "Fonts\\K_Pagetext.TTF" and files.simplifiedchinese == "Fonts\\ARHei.ttf", "the game's own Korean and Chinese files, not guessed ones: " .. tostring(files.korean))
+check(files.roman == "Fonts\\MORPHEUS.TTF" and files.russian == "Fonts\\MORPHEUS_CYR.TTF", "the name keeps the fantasy font")
+leave()
+SlashCmdList.KRAKENTIP("fonts")
+check(table.concat(CHAT, "\n", #CHAT - 5):find("traditionalchinese: Fonts\\bHEI01B.TTF (GameFontHighlight)", 1, true), "/kt fonts says where each file came from")
+local keep = CreateFontFamily
+CreateFontFamily = nil
+local probe = UIParent:CreateFontString()
+KT.Widgets.SetFont(probe, 23, "OUTLINE")
+check(probe._family == GameFontHighlight, "no font families: the game's own text object, with every alphabet")
+CreateFontFamily = keep
 local count = 0
 for _ in pairs(FONT_FAMILIES) do count = count + 1 end
 check(count < 40, count .. " font families, one per size and outline")

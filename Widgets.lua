@@ -20,22 +20,48 @@ Wg.FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 -- kind of family for every size we use.
 --------------------------------------------------------------------------------
 
-local ALPHABETS = {
-    normal = {
-        roman = Wg.FONT,
-        russian = "Fonts\\FRIZQT___CYR.TTF",
-        korean = "Fonts\\2002.TTF",
-        simplifiedchinese = "Fonts\\ARKai_T.ttf",
-        traditionalchinese = "Fonts\\blei00d.TTF",
-    },
-    title = {
-        roman = "Fonts\\MORPHEUS.TTF",
-        russian = "Fonts\\MORPHEUS_CYR.TTF",
-        korean = "Fonts\\2002.TTF",
-        simplifiedchinese = "Fonts\\ARKai_T.ttf",
-        traditionalchinese = "Fonts\\blei00d.TTF",
-    },
+local ALPHABET_LIST = { "roman", "korean", "simplifiedchinese", "traditionalchinese", "russian" }
+
+-- The file the game itself uses for each alphabet, read from its own font
+-- family, so it's the file this client really has. Guessed names only when
+-- the game can't say.
+local GUESS = {
+    roman = Wg.FONT,
+    russian = "Fonts\\FRIZQT___CYR.TTF",
+    korean = "Fonts\\2002.TTF",
+    simplifiedchinese = "Fonts\\ARKai_T.ttf",
+    traditionalchinese = "Fonts\\blei00d.TTF",
 }
+local gameFiles
+
+local function readGameFiles()
+    local files, from = {}, {}
+    for _, alphabet in ipairs(ALPHABET_LIST) do
+        for _, name in ipairs({ "GameFontHighlight", "GameFontNormal", "ChatFontNormal", "SystemFont_Shadow_Med1" }) do
+            local base = _G[name]
+            if not files[alphabet] and type(base) == "table" and base.GetFontObjectForAlphabet then
+                local ok, obj = pcall(base.GetFontObjectForAlphabet, base, alphabet)
+                local file = ok and obj and obj.GetFont and obj:GetFont()
+                if type(file) == "string" and file ~= "" then files[alphabet], from[alphabet] = file, name end
+            end
+        end
+        if not files[alphabet] then files[alphabet], from[alphabet] = GUESS[alphabet], "guess" end
+    end
+    return files, from
+end
+
+local function filesFor(kind)
+    gameFiles = gameFiles or { readGameFiles() }
+    local files = {}
+    for k, v in pairs(gameFiles[1]) do files[k] = v end
+    files.roman = Wg.FONT
+    if kind == "title" then
+        files.roman = "Fonts\\MORPHEUS.TTF"
+        files.russian = "Fonts\\MORPHEUS_CYR.TTF"
+    end
+    return files
+end
+
 local families = {}
 
 local function family(kind, size, flags)
@@ -44,9 +70,9 @@ local function family(kind, size, flags)
     if font ~= nil then return font end
     font = false
     if CreateFontFamily then
-        local members = {}
-        for _, alphabet in ipairs({ "roman", "korean", "simplifiedchinese", "traditionalchinese", "russian" }) do
-            members[#members + 1] = { alphabet = alphabet, file = ALPHABETS[kind][alphabet], height = size, flags = flags }
+        local files, members = filesFor(kind), {}
+        for _, alphabet in ipairs(ALPHABET_LIST) do
+            members[#members + 1] = { alphabet = alphabet, file = files[alphabet], height = size, flags = flags }
         end
         local ok, f = pcall(CreateFontFamily, "KrakentipFont_" .. key:gsub("%W", ""), members)
         if ok and f then font = f end
@@ -55,14 +81,37 @@ local function family(kind, size, flags)
     return font
 end
 
+-- Without font families of our own: the game's text object closest in size,
+-- which has every alphabet (the size is near, the outline is lost).
+local GAME_SIZES = {
+    { 10, "GameFontHighlightSmall" }, { 12, "GameFontHighlight" }, { 14, "GameFontHighlightMedium" }, { 16, "GameFontHighlightLarge" },
+}
+local function nearestGameFont(size)
+    local best, bestD
+    for _, g in ipairs(GAME_SIZES) do
+        local d = math.abs(g[1] - size)
+        if _G[g[2]] and (not bestD or d < bestD) then best, bestD = _G[g[2]], d end
+    end
+    return best
+end
+
 -- `kind` "normal" (the default) or "title" (the fantasy font).
 function Wg.SetFont(fs, size, flags, kind)
     kind, flags = kind or "normal", flags or ""
-    local font = family(kind, size, flags)
+    local font = family(kind, size, flags) or nearestGameFont(size)
     if font and pcall(fs.SetFontObject, fs, font) then return end
-    -- a client without font families: the plain file, Latin letters only
-    if kind == "title" and pcall(fs.SetFont, fs, ALPHABETS.title.roman, size, flags) then return end
+    if kind == "title" and pcall(fs.SetFont, fs, "Fonts\\MORPHEUS.TTF", size, flags) then return end
     fs:SetFont(Wg.FONT, kind == "title" and size - 2 or size, flags)
+end
+
+-- What /kt fonts prints: which file each alphabet gets, and where it came from.
+function Wg.FontReport()
+    local files, from = readGameFiles()
+    local lines = { ("font families: %s"):format(CreateFontFamily and "yes" or "no (the game's own text objects instead)") }
+    for _, alphabet in ipairs(ALPHABET_LIST) do
+        lines[#lines + 1] = ("%s: %s (%s)"):format(alphabet, tostring(files[alphabet]), from[alphabet])
+    end
+    return lines
 end
 
 function Wg.rgb(c) return c[1], c[2], c[3] end
