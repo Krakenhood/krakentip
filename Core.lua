@@ -119,13 +119,15 @@ local function fill(t, defaults)
 end
 
 KT.POSITIONS = { "mouse", "tooltip" }
+KT.STYLES = { "regular", "mid", "minimal" }
 
 local DEFAULTS = {
     settings = {
-        enabled = true,
+        enabled = true,     -- false: units get the game's own tooltip
+        style = "regular",  -- "regular", "mid" or "minimal" (Layouts.lua)
         position = "mouse", -- "mouse": next to the cursor; "tooltip": where the game puts tooltips (Edit Mode moves it)
         scale = 1,
-        players = false,    -- enemy players too, not just creatures
+        minimap = { angle = 200, hide = false },
         lines = {
             target = true,  -- who it's attacking
             difficulty = true,
@@ -143,6 +145,8 @@ function KT:LoadDB()
     self.db = db
     local s = db.settings
     if s.position ~= "mouse" and s.position ~= "tooltip" then s.position = "mouse" end
+    if s.style ~= "regular" and s.style ~= "mid" and s.style ~= "minimal" then s.style = "regular" end
+    s.players = nil -- from 0.1.0: every unit gets the card now
     s.scale = math.max(0.6, math.min(1.6, tonumber(s.scale) or 1))
 end
 
@@ -164,10 +168,14 @@ local HELP = {
     { "/kt", "open or close the options" },
     { "/kt mouse", "show the card next to the mouse" },
     { "/kt tooltip", "show the card where the game puts tooltips (move that in Edit Mode)" },
+    { "/kt style", "switch the look: regular, mid, minimal (or /kt style mid)" },
     { "/kt scale 1.2", "make the card bigger or smaller (0.6 to 1.6)" },
     { "/kt sample", "show or hide a sample card, to try the settings" },
-    { "/kt off", "give enemies the game's own tooltip again (/kt on undoes it)" },
+    { "/kt blizzard", "switch between the card and the game's own unit tooltips" },
+    { "/kt minimap", "show or hide the minimap button" },
 }
+
+KT.STYLE_LABEL = { regular = "Regular", mid = "Mid", minimal = "Minimal" }
 
 KT.POSITION_LABEL = {
     mouse = "next to the mouse",
@@ -182,7 +190,21 @@ end
 
 function KT:SetEnabled(on)
     self.db.settings.enabled = on
-    self:Print(on and "Enemies get the Kraken card." or "Enemies get the game's own tooltip.")
+    self:Print(on and "Units get the Kraken card." or "Units get the game's own tooltip (/kt blizzard switches back).")
+    self:Fire("SETTINGS")
+end
+
+-- `style` nil: the next look in line
+function KT:SetStyle(style)
+    local s = self.db.settings
+    if not style then
+        for i, st in ipairs(self.STYLES) do
+            if st == s.style then style = self.STYLES[i % #self.STYLES + 1] end
+        end
+    end
+    if not self.STYLE_LABEL[style] then return self:Print("Styles: regular, mid, minimal.") end
+    s.style = style
+    self:Printf("Card style: %s.", self.STYLE_LABEL[style])
     self:Fire("SETTINGS")
 end
 
@@ -192,6 +214,16 @@ local commands = {
     tooltip = function() KT:SetPosition("tooltip") end,
     on = function() KT:SetEnabled(true) end,
     off = function() KT:SetEnabled(false) end,
+    blizzard = function() KT:SetEnabled(not KT.db.settings.enabled) end,
+    style = function(arg) KT:SetStyle(arg ~= "" and arg or nil) end,
+    regular = function() KT:SetStyle("regular") end,
+    mid = function() KT:SetStyle("mid") end,
+    minimal = function() KT:SetStyle("minimal") end,
+    minimap = function()
+        local m = KT.db.settings.minimap
+        m.hide = not m.hide
+        KT:Fire("SETTINGS")
+    end,
     scale = function(arg)
         local n = tonumber(arg)
         if not n then return KT:Printf("Card scale is %.2f. Use /kt scale 0.6 to 1.6.", KT.db.settings.scale) end

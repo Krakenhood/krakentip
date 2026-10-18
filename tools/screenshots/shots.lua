@@ -23,7 +23,7 @@ end
 local NS = {}
 for _, name in ipairs(TOC) do assert(load(FILES[name], "@" .. name))("Krakentip", NS) end
 local KT = NS
-UNITS.player = { guid = "Player-1-0000AAAA", name = "Krakenhood", class = "WARRIOR", level = 21, player = true }
+UNITS.player = { guid = "Player-1-0000AAAA", name = "Krakenhood", class = "WARRIOR", className = "Warrior", level = 21, player = true }
 UNITS.wolf = {
     guid = "Creature-0-1-2-3-4521-000ABC", name = "Timberling Ravager", level = 24, ctype = "Beast", family = "Wolf",
     cls = "elite", hostile = true, hp = 1116, hpMax = 1800, target = "player",
@@ -32,28 +32,37 @@ UNITS.wolf = {
 UNITS.boar = { guid = "Creature-0-1-2-3-113-000DEF", name = "Bristleback Quilboar", level = 19, ctype = "Humanoid", hostile = true, reaction = 4, hp = 76, hpMax = 100 }
 UNITS.boss = { guid = "Creature-0-1-2-3-639-000222", name = "Edwin VanCleef", level = 21, boss = true, ctype = "Humanoid", cls = "elite", hostile = true, hp = SECRET, hpMax = SECRET, target = "tank" }
 UNITS.tank = { guid = "Player-1-0000CCCC", name = "Thalianne", class = "WARRIOR", player = true }
+UNITS.innkeeper = { guid = "Creature-0-1-2-3-295-000111", name = "Innkeeper Farley", subtitle = "Innkeeper", level = 30, ctype = "Humanoid", reaction = 5, hp = 100, hpMax = 100 }
+UNITS.friend = { guid = "Player-1-0000BBBB", name = "Thalianne", class = "MAGE", className = "Mage", race = "Night Elf", guild = "Krakenhood", level = 22, player = true, reaction = 5, hp = 800, hpMax = 900 }
 Krakenfriends = { journey = { partnerName = "Thalianne", pairs = { a = { mobs = { [4521] = { c = 42 } } } } } }
 FireEvent("ADDON_LOADED", "Krakentip")
 FireEvent("PLAYER_LOGIN")
 local Card = KT.Card
+local S = KrakentipDB.settings
 
-local function col(c) return { c[1], c[2], c[3] } end
+local function col(c) return c and { c[1], c[2], c[3] } or nil end
+local function shown(r) return r and r:IsShown() end
 local function snap()
-    local rows, quests = {}, {}
-    for _, r in ipairs(Card.rows) do
-        if r:IsShown() then rows[#rows + 1] = { r.label:GetText(), tostring(r.value:GetText()), col(r.value._color) } end
+    local f = Card.frame
+    local out = { width = f:GetWidth(), height = f:GetHeight(), rows = {}, quests = {} }
+    out.name, out.nameColor = f.name:GetText(), col(f.name._color)
+    if shown(f.level) then out.level, out.levelColor = f.level:GetText(), col(f.level._color) end
+    out.skull = shown(f.skull) and true or false
+    out.sub = f.sub and f.sub:GetText()
+    out.tag = shown(f.tag) and f.tag.text:GetText() or nil
+    local v, max = f.bar:GetValue(), f.bar._max
+    out.fill = (type(v) == "number" and type(max) == "number" and max > 0) and v / max or 0.62
+    out.barColor = col(f.bar._color)
+    out.hp = f.bar.text:GetText()
+    for _, r in ipairs(f.rows or {}) do
+        if r:IsShown() then out.rows[#out.rows + 1] = { r.label:GetText(), tostring(r.value:GetText()), col(r.value._color) } end
     end
-    for _, q in ipairs(Card.quests) do
-        if q:IsShown() then quests[#quests + 1] = { q:GetText(), col(q._color) } end
+    for _, q in ipairs(f.quests or {}) do
+        if q:IsShown() then out.quests[#out.quests + 1] = { q:GetText(), col(q._color) } end
     end
-    local v, max = Card.bar:GetValue(), Card.bar._max
-    return {
-        name = Card.name:GetText(), nameColor = col(Card.name._color),
-        level = Card.badge.level:IsShown() and Card.badge.level:GetText() or nil, levelColor = col(Card.badge.level._color),
-        sub = Card.sub:GetText(), tag = Card.tag:IsShown() and Card.tag.text:GetText() or nil,
-        fill = (type(v) == "number" and type(max) == "number" and max > 0) and v / max or 0.62,
-        hp = Card.bar.text:GetText(), rows = rows, quests = quests, scale = Card.frame:GetScale(),
-    }
+    if shown(f.target) then out.target, out.targetColor = f.target:GetText(), col(f.target._color) end
+    if shown(f.quest) then out.quest = f.quest:GetText() end
+    return out
 end
 
 local function hover(unit)
@@ -61,25 +70,32 @@ local function hover(unit)
     GameTooltip:SetUnit("mouseover")
     local s = snap()
     UNITS.mouseover = nil
-    GameTooltip:Hide()
+    for _ = 1, 4 do Card.frame:GetScript("OnUpdate")(Card.frame, 0.1) end
     return s
 end
 
 local out = { cards = {} }
-out.cards.wolf = hover("wolf")
-out.cards.boar = hover("boar")
-out.cards.boss = hover("boss")
+for _, style in ipairs({ "regular", "mid", "minimal" }) do
+    S.style = style
+    local c = {}
+    for _, unit in ipairs({ "wolf", "boar", "boss", "innkeeper", "friend" }) do c[unit] = hover(unit) end
+    out.cards[style] = c
+end
+S.style = "regular"
 
--- the options window as it opens
+-- the options window as it opens, with the sample card
 SlashCmdList.KRAKENTIP("")
 local O = KT.Options
 Click(O.sampleButton)
+local function radio(g)
+    local r = {}
+    for _, rb in ipairs(g.buttons) do r[#r + 1] = { rb.label:GetText(), rb.hint and rb.hint:GetText(), rb:GetChecked() and true or false } end
+    return r
+end
 local checks = {}
 for _, cb in ipairs(O.checks) do checks[#checks + 1] = { cb.label:GetText(), cb:GetChecked() and true or false } end
-local radio = {}
-for _, rb in ipairs(O.position.buttons) do radio[#radio + 1] = { rb.label:GetText(), rb.hint and rb.hint:GetText(), rb:GetChecked() and true or false } end
-out.options = { checks = checks, radio = radio, scale = O.scaleText:GetText(), sample = O.sampleButton:GetText() }
-out.cards.sample = snap()
+out.options = { checks = checks, position = radio(O.position), style = radio(O.style), scale = O.scaleText:GetText(), sample = O.sampleButton:GetText(), height = O.frame:GetHeight() }
+out.sample = snap()
 
 out.errors = #ERRORS
 SHOT_JSON = json(out)

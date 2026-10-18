@@ -78,6 +78,7 @@ function Object:GetPoint(i)
 end
 function Object:SetMinMaxValues(a, b) rawset(self, "_min", a); rawset(self, "_max", b) end
 function Object:SetValue(v) rawset(self, "_value", v) end
+function Object:SetStatusBarColor(r, g, b) rawset(self, "_color", { r, g, b }) end
 function Object:GetValue() return self._value end
 function Object:SetChecked(v) rawset(self, "_checked", v) end
 function Object:GetChecked() return self._checked end
@@ -100,6 +101,11 @@ function Click(btn, which)
 end
 
 UIParent = CreateFrame("Frame", "UIParent"); UIParent:SetSize(1920, 1080)
+Minimap = CreateFrame("Frame", "Minimap"); Minimap:SetSize(140, 140)
+function Object:GetCenter() return 100, 100 end
+function Object:GetFrameLevel() return 1 end
+function Object:IsMouseOver() return self._over or false end
+function Object:SetJustifyH() end
 DEFAULT_CHAT_FRAME = CreateFrame("Frame")
 function DEFAULT_CHAT_FRAME:AddMessage(msg)
     msg = tostring(msg):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
@@ -126,7 +132,7 @@ function BreakUpLargeNumbers(n)
     repeat s, k = s:gsub("^(-?%d+)(%d%d%d)", "%1,%2") until k == 0
     return s
 end
-RAID_CLASS_COLORS = { MAGE = { r = 0.25, g = 0.78, b = 0.92 }, WARRIOR = { r = 0.78, g = 0.61, b = 0.43 } }
+RAID_CLASS_COLORS = { MAGE = { r = 0.25, g = 0.78, b = 0.92 }, WARRIOR = { r = 0.78, g = 0.61, b = 0.43 }, ROGUE = { r = 1, g = 0.96, b = 0.41 } }
 C_AddOns = { GetAddOnMetadata = function() return "0.1.0-test" end }
 function GetQuestGreenRange() return 8 end
 
@@ -169,6 +175,8 @@ function GameTooltip:SetOwner(owner)
     rawset(self, "_owner", owner)
     clearTip(self)
 end
+function GameTooltip:GetOwner() return self._owner end
+function GameTooltip:IsOwned(f) return self._owner == f end
 function GameTooltip:AddLine(text)
     local i = #self._lines + 1
     local fs = _G["GameTooltipTextLeft" .. i] or CreateFrame("FontString", "GameTooltipTextLeft" .. i)
@@ -202,7 +210,9 @@ function GameTooltip:FillUnit(unit)
     self:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -95, 110)
     local u = UNITS[unit] or LAST_UNIT
     LAST_UNIT = u
-    local lines = { { leftText = u.name, type = 2 }, { leftText = "Level " .. tostring(u.level) .. " " .. tostring(u.ctype or ""), type = 0 } }
+    local lines = { { leftText = u.name, type = 2 } }
+    if u.subtitle then lines[#lines + 1] = { leftText = u.subtitle } end
+    lines[#lines + 1] = { leftText = "Level " .. tostring(u.level) .. " " .. tostring(u.ctype or ""), type = 0 }
     for _, q in ipairs(u.questLines or {}) do lines[#lines + 1] = q end
     setLines(self, lines)
     local data = { type = 2, lines = USE_TOOLTIP_DATA and lines or nil }
@@ -230,7 +240,7 @@ end
 function UnitExists(u) return U(u) ~= nil end
 function UnitGUID(u) local x = U(u); return x and x.guid end
 function UnitName(u) local x = U(u); if x then return x.name, x.realm end end
-function UnitClass(u) local x = U(u); if x and x.class then return x.class, x.class, 1 end end
+function UnitClass(u) local x = U(u); if x and x.class then return x.className or x.class, x.class, 1 end end
 function UnitLevel(u) local x = U(u); return x and x.level or 0 end
 function UnitIsPlayer(u) local x = U(u); return x and x.player or false end
 function UnitCanAttack(a, u) local x = U(u); return x and x.hostile or false end
@@ -243,6 +253,9 @@ function UnitIsTapDenied(u) local x = U(u); return x and x.tapDenied or false en
 function UnitIsDeadOrGhost(u) local x = U(u); return x and x.dead or false end
 function UnitHealth(u) local x = U(u); return x and x.hp or 0 end
 function UnitHealthMax(u) local x = U(u); return x and x.hpMax or 0 end
+function UnitRace(u) local x = U(u); return x and x.race end
+function GetGuildInfo(u) local x = U(u); return x and x.guild end
+LEVEL = "Level"
 function UnitIsUnit(a, b)
     local x, y = U(a), U(b)
     return x ~= nil and y ~= nil and x.guid == y.guid

@@ -3,11 +3,11 @@ local call, clean = KT.call, KT.clean
 local Card = KT.Card
 
 --------------------------------------------------------------------------------
--- The hook into the game's tooltip. Only unit tooltips are looked at, and of
--- those only enemies get the card: the game's tooltip stays (invisible) and
--- keeps doing its job, so it still comes and goes as it always did, and the
--- card simply shows in its place. The moment the tooltip shows anything else
--- (an item, a spell, a button) it is visible again, unchanged.
+-- The hook into the game's tooltip. The game builds unit tooltips (creatures
+-- and players, friend or foe) on their own path; items, spells, menus and
+-- buttons take others. Only unit tooltips are touched: the game's one is
+-- hidden before it's ever drawn, and the card shows instead. Everything else
+-- keeps the game's tooltip, unchanged.
 --------------------------------------------------------------------------------
 
 local Hook = {}
@@ -19,6 +19,11 @@ if LINE then
     for _, key in ipairs({ "QuestTitle", "QuestObjective", "QuestPlayer" }) do
         if LINE[key] then QUEST_TYPES[LINE[key]] = key end
     end
+end
+
+local function lineText(tip, i)
+    local fs = _G[(tip:GetName() or "GameTooltip") .. "TextLeft" .. i]
+    return fs, fs and clean(fs:GetText())
 end
 
 -- Quest titles and objectives from the tooltip's data: { text, isTitle }.
@@ -40,12 +45,10 @@ local function questLinesFromText(tip)
     local out = {}
     local n = call(tip.NumLines, tip) or 0
     for i = 2, n do
-        local fs = _G[(tip:GetName() or "GameTooltip") .. "TextLeft" .. i]
-        local text = fs and clean(fs:GetText())
+        local _, text = lineText(tip, i)
         if type(text) == "string" and text:find("^%s*%- ") then
             if #out == 0 or out[#out][2] == nil then
-                local prev = _G[(tip:GetName() or "GameTooltip") .. "TextLeft" .. (i - 1)]
-                local title = prev and clean(prev:GetText())
+                local prev, title = lineText(tip, i - 1)
                 local r, g, b = call(prev and prev.GetTextColor, prev)
                 if type(title) == "string" and r and r > 0.9 and g and g > 0.7 and b and b < 0.2 and (#out == 0 or out[#out][1] ~= title) then
                     out[#out + 1] = { title, true }
@@ -57,6 +60,17 @@ local function questLinesFromText(tip)
     return out
 end
 
+-- An NPC's title ("Innkeeper", "<Weapon Merchant>") is the second line, when
+-- that line isn't the level line.
+local function subtitle(tip, unit)
+    if call(UnitIsPlayer, unit) then return nil end
+    local _, text = lineText(tip, 2)
+    if type(text) ~= "string" or text == "" then return nil end
+    local level = call(UnitLevel, unit)
+    if text:find(LEVEL or "Level", 1, true) or (level and text:find(tostring(level), 1, true)) then return nil end
+    return text
+end
+
 -- The game may name the unit by any token it has ("target" when you hover your
 -- target, a nameplate). Under the mouse we always call it "mouseover", so the
 -- card notices the moment the mouse leaves it.
@@ -66,65 +80,39 @@ local function unitOf(tip)
     if call(UnitExists, "mouseover") and (type(unit) ~= "string" or call(UnitIsUnit, unit, "mouseover")) then
         return "mouseover"
     end
-    return unit
+    if type(unit) == "string" and call(UnitExists, unit) then return unit end
+    return nil
 end
 
 function Hook:Wants(unit)
     local s = KT.db and KT.db.settings
-    if not (s and s.enabled and unit) then return false end
-    if not call(UnitCanAttack, "player", unit) then return false end
-    if call(UnitIsPlayer, unit) and not s.players then return false end
-    return true
+    return (s and s.enabled and unit) and true or false
 end
 
--- Makes the game's tooltip visible again, for whatever it shows next.
-function Hook:Reveal()
-    self.cleared = nil
-    if self.hidden then
-        GameTooltip:SetAlpha(1)
-        self.hidden = nil
-    end
-    Card:Release()
-end
-
--- A new owner took the tooltip (another unit, an item, a button): it's the
--- game's again, and nothing we let go of earlier holds anymore.
+-- A new owner took the tooltip (another unit, an item, a button): the game's
+-- tooltip shows as the game made it, and the card makes way.
 function Hook:Restore()
-    self.gone = nil
-    self:Reveal()
-end
-
--- The enemy left the mouse. The game would redraw its tooltip and fade it for
--- seconds; instead it goes now, and stays gone until a new owner takes it.
-function Hook:Dismiss()
-    self.gone = true
-    pcall(GameTooltip.Hide, GameTooltip)
-end
-
--- The tooltip was emptied. Often that's the game redrawing the same enemy
--- (OnUnit follows at once and decides); if nothing follows in this frame, the
--- tooltip shows something else now and it's the game's again.
-function Hook:OnCleared()
-    if not self.hidden then return end
-    if not (C_Timer and C_Timer.After) then return self:Reveal() end
-    self.cleared = true
-    C_Timer.After(0, function()
-        if Hook.cleared then KT.dispatch(Hook.Reveal, Hook) end
-    end)
+    self.owning = nil
+    Card:Release(true)
 end
 
 function Hook:OnUnit(tip, data)
     if tip ~= GameTooltip then return end
-    self.cleared = nil
-    if self.gone then return end -- the redraw of the enemy we let go of
-    -- the enemy under the mouse is gone and this is the game's redraw: let go
-    if Card:Following() and not call(UnitExists, "mouseover") then return Card:LetGo() end
+    if self.owning and not call(UnitExists, "mouseover") and Card.info and Card.info.unit == "mouseover" then
+        -- the game redraws the tooltip once more when the mouse leaves: stay hidden
+        pcall(tip.Hide, tip)
+        return Card:LetGo()
+    end
     local unit = unitOf(tip)
-    if not self:Wants(unit) then return self:Reveal() end
+    if not self:Wants(unit) then
+        self.owning = nil
+        return
+    end
     local quests = (data and data.lines and next(QUEST_TYPES)) and questLinesFromData(data) or questLinesFromText(tip)
-    Card:ShowFor(Card:Gather(unit, quests))
-    GameTooltip:SetAlpha(0)
-    self.hidden = true
+    local owner = unit ~= "mouseover" and call(tip.GetOwner, tip) or nil
+    Card:ShowFor(Card:Gather(unit, { quests = quests, subtitle = subtitle(tip, unit) }), owner)
+    self.owning = true
+    pcall(tip.Hide, tip)
 end
 
 function Hook:Install()
@@ -139,18 +127,20 @@ function Hook:Install()
             KT.dispatch(Hook.OnUnit, Hook, tip)
         end)
     end
+    -- every tooltip starts with a new owner: from then on it's the game's again
     if hooksecurefunc then
         hooksecurefunc(GameTooltip, "SetOwner", function() KT.dispatch(Hook.Restore, Hook) end)
     end
-    pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipCleared", function() KT.dispatch(Hook.OnCleared, Hook) end)
-    GameTooltip:HookScript("OnHide", function() KT.dispatch(Hook.Reveal, Hook) end)
-    -- the game may show its tooltip again after its redraw; it stays gone
+    -- the game may show its unit tooltip right after building it: it stays hidden
     GameTooltip:HookScript("OnShow", function(tip)
-        if Hook.gone then pcall(tip.Hide, tip) end
+        if Hook.owning then pcall(tip.Hide, tip) end
     end)
 end
 
 KT:Listen("SETUP", function() Hook:Install() end)
 KT:Listen("SETTINGS", function()
-    if not KT.db.settings.enabled then Hook:Restore() end
+    if not KT.db.settings.enabled then
+        Hook.owning = nil
+        Card:Release(true)
+    end
 end)

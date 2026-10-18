@@ -4,13 +4,13 @@ local Wg = KT.Widgets
 
 --------------------------------------------------------------------------------
 -- The options window: where the card shows, what's on it, how big it is, and a
--- sample card to try it all without an enemy under the mouse.
+-- sample card to try it all without a creature under the mouse.
 --------------------------------------------------------------------------------
 
 local Options = {}
 KT.Options = Options
 
-local WIDTH, HEIGHT = 360, 420
+local WIDTH, HEIGHT = 360, 540 -- the height follows the content
 local PAD = 18
 
 local function heading(f, text, y)
@@ -70,7 +70,7 @@ function Options:Create()
     title:SetText("Krakentip")
     local sub = Wg.Text(f, 11, T.dim)
     sub:SetPoint("LEFT", title, "RIGHT", 8, -1)
-    sub:SetText("a card for every enemy")
+    sub:SetText("a card for every creature and player")
     local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", 2, 2)
     close:SetScript("OnClick", function() f:Hide() end)
@@ -86,6 +86,17 @@ function Options:Create()
     self.position:SetPoint("TOPLEFT", f, "TOPLEFT", PAD - 2, -y)
     y = y + self.position.height + 8
 
+    -- the look
+    heading(f, "Style", y)
+    y = y + 26
+    self.style = Wg.Radio(f, {
+        { "regular", "Regular", "The full card: a big bar and a line for each thing." },
+        { "mid", "Mid", "Name, type and target at a glance, a thin bar." },
+        { "minimal", "Minimal", "One line: level, name, health, target." },
+    }, function() return KT.db.settings.style end, function(v) KT.db.settings.style = v end)
+    self.style:SetPoint("TOPLEFT", f, "TOPLEFT", PAD - 2, -y)
+    y = y + self.style.height + 8
+
     -- what
     heading(f, "On the card", y)
     y = y + 24
@@ -99,7 +110,7 @@ function Options:Create()
         return cb
     end
     check("Who it's attacking", "target", "\"Targeting: You\" in red when it's coming for you.")
-    check("How hard it is", "difficulty", "From its level against yours: Trivial, Easy, Even, Hard, Very hard, Deadly.")
+    check("How hard it is", "difficulty", "For what you can fight, from its level against yours: Trivial, Easy, Even, Hard, Very hard, Deadly. The Regular card has a line for it; the others colour the level.")
     check("Quest progress", "quests", "The quest lines the game's tooltip shows for this creature.")
     self.friends = check("Kills with your Krakenfriends partner", "friends", "How often you two have killed this creature. Needs Krakenfriends.")
     y = y + 6
@@ -107,8 +118,7 @@ function Options:Create()
     -- the card
     heading(f, "The card", y)
     y = y + 24
-    check("Give enemies the Kraken card", "enabled", "Off: enemies get the game's own tooltip again.", KT.db.settings)
-    check("Enemy players too", "players", "Off: only creatures get the card, players keep the game's tooltip.", KT.db.settings)
+    check("Use the Kraken card", "enabled", "Off: creatures and players get the game's own tooltip again (/kt blizzard).", KT.db.settings)
 
     local sizeLabel = Wg.Text(f, 12, T.text)
     sizeLabel:SetPoint("TOPLEFT", PAD + 2, -(y + 4))
@@ -145,12 +155,14 @@ function Options:Create()
     note:SetPoint("LEFT", sample, "RIGHT", 10, 0)
     note:SetText("/kt sample does the same")
     self.note = note
+    f:SetHeight(y + 24 + PAD)
 end
 
 function Options:Refresh()
     if not self.frame then return end
     local s = KT.db.settings
     self.position:Refresh()
+    self.style:Refresh()
     for _, cb in ipairs(self.checks) do
         local onShow = cb:GetScript("OnShow")
         if onShow then onShow(cb) end

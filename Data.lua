@@ -18,7 +18,9 @@ KT.Theme = {
     warn   = { 0.95, 0.72, 0.30 },
     bad    = { 1.00, 0.36, 0.30 },
     teal   = { 0.31, 0.82, 0.77 }, -- Krakenfriends' colour
-    health = { 0.78, 0.12, 0.10 },
+    health = { 0.78, 0.12, 0.10 },   -- the bar for creatures you can attack
+    friendly = { 0.16, 0.66, 0.20 }, -- and for everyone else
+    stone  = { 0.10, 0.09, 0.08, 0.94 }, -- behind the compact cards
     tapped = { 0.55, 0.55, 0.55 },
 }
 
@@ -27,6 +29,7 @@ KT.Files = {
     edge = { "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", "Interface\\DialogFrame\\UI-DialogBox-Border" },
     back = { "Interface\\FrameGeneral\\UI-Background-Rock", "Interface\\DialogFrame\\UI-DialogBox-Background-Dark" },
     bar = { "Interface\\TargetingFrame\\UI-StatusBar" },
+    thinEdge = { "Interface\\Tooltip\\UI-Tooltip-Border" },
     ring = "Interface\\Minimap\\MiniMap-TrackingBorder",
     skull = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull",
     titleFont = "Fonts\\MORPHEUS.TTF",
@@ -40,10 +43,12 @@ KT.Classification = {
     worldboss = "BOSS",
 }
 
--- Name colour by how the creature feels about you (UnitReaction: 1-3 hostile, 4 neutral).
+-- Name colour by how the unit feels about you (UnitReaction: 1-3 hostile,
+-- 4 neutral, 5 and up friendly). Players are named in their class colour.
 KT.Reaction = {
-    hostile = { 1.00, 0.29, 0.23 },
-    neutral = { 1.00, 0.85, 0.20 },
+    hostile  = { 1.00, 0.29, 0.23 },
+    neutral  = { 1.00, 0.85, 0.20 },
+    friendly = { 0.35, 0.95, 0.35 },
 }
 
 -- How hard a creature is for you, by the level difference. `range` is how far
@@ -62,7 +67,7 @@ end
 
 -- The pretend creature for the sample card.
 KT.Sample = {
-    name = "Timberling Ravager", level = 24, cls = "elite", reaction = "hostile",
+    name = "Timberling Ravager", level = 24, cls = "elite", reaction = "hostile", canAttack = true,
     ctype = "Beast", family = "Wolf", hp = 1116, hpMax = 1800,
     target = "You", quests = { { "Ravaged Pelts", true }, { " - Ravaged Pelt: 3/8" } }, together = 42, partner = "Thalianne",
 }

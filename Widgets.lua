@@ -69,6 +69,25 @@ function Wg.DialogFrame(f)
     return frame
 end
 
+-- The small look, for the compact cards: dark stone with a thin gold edge.
+function Wg.ThinFrame(f, pad)
+    pad = pad or 3
+    local frame = CreateFrame("Frame", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    frame:SetPoint("TOPLEFT", -pad, pad)
+    frame:SetPoint("BOTTOMRIGHT", pad, -pad)
+    frame:SetFrameLevel(math.max(0, f:GetFrameLevel() - 1))
+    if frame.SetBackdrop then
+        frame:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = Wg.FirstFile(KT.Files.thinEdge), edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        frame:SetBackdropColor(T.stone[1], T.stone[2], T.stone[3], T.stone[4])
+        frame:SetBackdropBorderColor(T.gold[1], T.gold[2], T.gold[3], 0.85)
+    end
+    return frame
+end
+
 -- A flat text button in the gold style (tabs, links).
 function Wg.TextButton(parent, label, size)
     local b = CreateFrame("Button", nil, parent)
