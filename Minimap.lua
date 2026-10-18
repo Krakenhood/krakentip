@@ -25,7 +25,7 @@ local function showTooltip(self)
     GameTooltip:AddDoubleLine("Card", st.enabled and KT.STYLE_LABEL[st.style] or "off (the game's tooltip)", 0.7, 0.7, 0.7, 1, 1, 1)
     GameTooltip:AddDoubleLine("Where", KT.POSITION_LABEL[st.position], 0.7, 0.7, 0.7, 1, 1, 1)
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Click: options   Right-click: next style   Drag: move", 0.5, 0.5, 0.5, true)
+    GameTooltip:AddLine("Click: options   Right-click: next style   Shift-click: compare the styles   Drag: move", 0.5, 0.5, 0.5, true)
     GameTooltip:Show()
 end
 
@@ -64,6 +64,8 @@ local function createButton()
         if which == "RightButton" then
             KT:SetStyle()
             if GameTooltip:IsOwned(button) then showTooltip(button) end
+        elseif IsShiftKeyDown and IsShiftKeyDown() then
+            KT.Compare:Toggle()
         else
             KT.Options:Toggle()
         end

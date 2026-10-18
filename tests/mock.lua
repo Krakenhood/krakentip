@@ -82,7 +82,8 @@ function Object:SetStatusBarColor(r, g, b) rawset(self, "_color", { r, g, b }) e
 function Object:GetValue() return self._value end
 function Object:SetChecked(v) rawset(self, "_checked", v) end
 function Object:GetChecked() return self._checked end
-function Object:SetFont() return true end
+function Object:SetFont(_, size) rawset(self, "_size", size); return true end
+function Object:SetTexture(t) rawset(self, "_tex", t) end
 
 function CreateFrame(kind, name, parent, template)
     local f = new(kind or "Frame", parent, name)
@@ -135,6 +136,9 @@ end
 RAID_CLASS_COLORS = { MAGE = { r = 0.25, g = 0.78, b = 0.92 }, WARRIOR = { r = 0.78, g = 0.61, b = 0.43 }, ROGUE = { r = 1, g = 0.96, b = 0.41 } }
 C_AddOns = { GetAddOnMetadata = function() return "0.1.0-test" end }
 function GetQuestGreenRange() return 8 end
+SHIFT = false
+function IsShiftKeyDown() return SHIFT end
+function SetPortraitTexture(tex, unit) if not UnitExists(unit) then error("no unit") end tex:SetTexture("portrait:" .. unit) end
 
 -- timers: C_Timer.After(0) runs on the next frame, NextFrame() plays it
 TIMERS = {}

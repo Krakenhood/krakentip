@@ -89,13 +89,32 @@ function Options:Create()
     -- the look
     heading(f, "Style", y)
     y = y + 26
-    self.style = Wg.Radio(f, {
-        { "regular", "Regular", "The full card: a big bar and a line for each thing." },
-        { "mid", "Mid", "Name, type and target at a glance, a thin bar." },
-        { "minimal", "Minimal", "One line: level, name, health, target." },
-    }, function() return KT.db.settings.style end, function(v) KT.db.settings.style = v end)
-    self.style:SetPoint("TOPLEFT", f, "TOPLEFT", PAD - 2, -y)
-    y = y + self.style.height + 8
+    -- ten looks: step through them here, or see them all in Compare
+    local prev = Wg.TextButton(f, "<", 14)
+    prev:SetSize(24, 22)
+    prev:SetPoint("TOPLEFT", PAD - 4, -y)
+    local styleName = Wg.Text(f, 13, T.gold, "CENTER")
+    styleName:SetPoint("LEFT", prev, "RIGHT", 2, 0)
+    styleName:SetWidth(110)
+    local nextB = Wg.TextButton(f, ">", 14)
+    nextB:SetSize(24, 22)
+    nextB:SetPoint("LEFT", styleName, "RIGHT", 2, 0)
+    local function step(d)
+        local list, now = KT.STYLES, 1
+        for i, st in ipairs(list) do if st == KT.db.settings.style then now = i end end
+        KT:SetStyle(list[(now - 1 + d) % #list + 1])
+    end
+    prev:SetScript("OnClick", function() step(-1) end)
+    nextB:SetScript("OnClick", function() step(1) end)
+    local compare = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    compare:SetSize(130, 22)
+    compare:SetPoint("TOPRIGHT", -PAD, -y)
+    compare:SetText("Compare all")
+    compare:SetScript("OnClick", function() KT.Compare:Toggle() end)
+    local styleHint = Wg.Text(f, 11, T.dim)
+    styleHint:SetPoint("TOPLEFT", PAD + 2, -(y + 26))
+    self.styleName, self.styleHint, self.compareButton, self.stylePrev, self.styleNext = styleName, styleHint, compare, prev, nextB
+    y = y + 50
 
     -- what
     heading(f, "On the card", y)
@@ -162,7 +181,10 @@ function Options:Refresh()
     if not self.frame then return end
     local s = KT.db.settings
     self.position:Refresh()
-    self.style:Refresh()
+    local i = 1
+    for n, st in ipairs(KT.STYLES) do if st == s.style then i = n end end
+    self.styleName:SetText(("%s  %d/%d"):format(KT.STYLE_LABEL[s.style], i, #KT.STYLES))
+    self.styleHint:SetText(KT.STYLE_HINT[s.style])
     for _, cb in ipairs(self.checks) do
         local onShow = cb:GetScript("OnShow")
         if onShow then onShow(cb) end

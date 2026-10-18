@@ -202,6 +202,7 @@ function Card:ShowFor(info, owner)
     self.frame:SetAlpha(1)
     self:Place()
     self.frame:Show()
+    KT:Fire("CARD", info)
 end
 
 -- `force` ends a fade that's still running; without it the fade finishes first.
@@ -279,6 +280,7 @@ function Card:OnUpdate(elapsed)
     local fresh = self:Gather(info.unit, info)
     fresh.owner = info.owner
     self:Fill(fresh)
+    KT:Fire("CARD", fresh)
 end
 
 KT:Listen("SETTINGS", function()

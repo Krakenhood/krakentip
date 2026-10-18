@@ -55,13 +55,32 @@ local function snap()
     out.barColor = col(f.bar._color)
     out.hp = f.bar.text:GetText()
     for _, r in ipairs(f.rows or {}) do
-        if r:IsShown() then out.rows[#out.rows + 1] = { r.label:GetText(), tostring(r.value:GetText()), col(r.value._color) } end
+        if r:IsShown() then
+            if r.label then
+                out.rows[#out.rows + 1] = { r.label:GetText(), tostring(r.value:GetText()), col(r.value._color) }
+            else -- Column: one text per line
+                out.rows[#out.rows + 1] = { r:GetText(), r._size, col(r._color) }
+            end
+        end
     end
+    out.lines = {}
+    for _, l in ipairs(f.lines or {}) do
+        if l:IsShown() then out.lines[#out.lines + 1] = { l:GetText(), col(l._color) } end
+    end
+    if shown(f.left) then out.left, out.leftColor = f.left:GetText(), col(f.left._color) end
+    if shown(f.right) then out.right, out.rightColor = f.right:GetText(), col(f.right._color) end
+    if f.info and f.info.GetText and shown(f.info) then out.info = f.info:GetText() end
+    out.chips = {}
+    for _, chip in ipairs(f.chips or {}) do
+        if chip:IsShown() then out.chips[#out.chips + 1] = { chip.icon._tex, chip.text:GetText(), col(chip.text._color) } end
+    end
+    if f.face then out.face = f.face._tex end
     for _, q in ipairs(f.quests or {}) do
         if q:IsShown() then out.quests[#out.quests + 1] = { q:GetText(), col(q._color) } end
     end
     if shown(f.target) then out.target, out.targetColor = f.target:GetText(), col(f.target._color) end
     if shown(f.quest) then out.quest = f.quest:GetText() end
+    out.style = KrakentipDB.settings.style
     return out
 end
 
@@ -75,7 +94,7 @@ local function hover(unit)
 end
 
 local out = { cards = {} }
-for _, style in ipairs({ "regular", "mid", "minimal" }) do
+for _, style in ipairs(KT.STYLES) do
     S.style = style
     local c = {}
     for _, unit in ipairs({ "wolf", "boar", "boss", "innkeeper", "friend" }) do c[unit] = hover(unit) end
@@ -94,8 +113,9 @@ local function radio(g)
 end
 local checks = {}
 for _, cb in ipairs(O.checks) do checks[#checks + 1] = { cb.label:GetText(), cb:GetChecked() and true or false } end
-out.options = { checks = checks, position = radio(O.position), style = radio(O.style), scale = O.scaleText:GetText(), sample = O.sampleButton:GetText(), height = O.frame:GetHeight() }
+out.options = { checks = checks, position = radio(O.position), styleName = O.styleName:GetText(), styleHint = O.styleHint:GetText(), scale = O.scaleText:GetText(), sample = O.sampleButton:GetText(), height = O.frame:GetHeight() }
 out.sample = snap()
 
+out.styles, out.labels, out.hints = KT.STYLES, KT.STYLE_LABEL, KT.STYLE_HINT
 out.errors = #ERRORS
 SHOT_JSON = json(out)

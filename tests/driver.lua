@@ -280,7 +280,47 @@ hover("innkeeper")
 check(not F().target:IsShown() and not F().quest:IsShown() and not F().tag:IsShown(), "nothing extra for an innkeeper")
 leave()
 SlashCmdList.KRAKENTIP("style")
-check(S.style == "regular", "/kt style cycles back to regular")
+check(S.style == "classic", "/kt style goes on to the next look")
+SlashCmdList.KRAKENTIP("regular")
+check(S.style == "regular", "/kt regular picks a look by its name")
+
+section("all ten looks: every kind of unit, no errors, each its own size")
+local sizes, distinct = {}, 0
+for _, style in ipairs(KT.STYLES) do
+    SlashCmdList.KRAKENTIP("style " .. style)
+    for _, unit in ipairs({ "wolf", "boss", "boar", "innkeeper", "friend", "rogue" }) do
+        hover(unit)
+        check(cardShown() and F() == Card.frames[style], style .. " shows for " .. unit)
+        check(F().name:GetText() == UNITS[unit].name or (style == "plate" and F().name:GetText():find(UNITS[unit].name, 1, true)), style .. ": name of " .. unit)
+        local w, h = F():GetWidth(), F():GetHeight()
+        check(type(w) == "number" and w >= 100 and w <= 400 and type(h) == "number" and h >= 20 and h <= 260, ("%s %s: %sx%s"):format(style, unit, tostring(w), tostring(h)))
+        if unit == "wolf" then
+            local key = w .. "x" .. h
+            if not sizes[key] then sizes[key] = true; distinct = distinct + 1 end
+        end
+        leave()
+    end
+end
+check(distinct >= 9, distinct .. " different sizes for the wolf")
+check(#ERRORS == 0, "no errors in any look")
+SlashCmdList.KRAKENTIP("regular")
+
+section("compare: every look side by side")
+SlashCmdList.KRAKENTIP("compare")
+local Cmp = KT.Compare
+check(Cmp.frame:IsShown() and #Cmp.cells == 10, "ten looks")
+check(Cmp.cells[1].card.name:GetText() == "Timberling Ravager", "the sample first")
+check(Cmp.cells[1].label:GetText() == "Regular  (in use)", "the look in use is marked: " .. tostring(Cmp.cells[1].label:GetText()))
+hover("friend")
+check(Cmp.cells[5].card.name:GetText() == "Thalianne", "hovering fills every look with that unit")
+leave()
+check(Cmp.cells[2].card.name:GetText() == "Thalianne", "and keeps it after the mouse leaves")
+check(Cmp.cells[2].card.bar.text:GetText() == "89%", "health kept: " .. tostring(Cmp.cells[2].card.bar.text:GetText()))
+Click(Cmp.cells[7])
+check(S.style == "portrait" and Cmp.cells[7].label:GetText() == "Portrait  (in use)", "click a look to use it")
+check(Cmp.frame:GetHeight() > 200, "sized to its looks: " .. Cmp.frame:GetHeight())
+Cmp.frame:Hide()
+SlashCmdList.KRAKENTIP("regular")
 
 section("/kt blizzard: the game's own unit tooltips")
 SlashCmdList.KRAKENTIP("blizzard")
@@ -299,14 +339,19 @@ SlashCmdList.KRAKENTIP("")
 local O = KT.Options
 check(O.frame:IsShown(), "options open")
 check(O.position.buttons[1]:GetChecked() and not O.position.buttons[2]:GetChecked(), "mouse picked")
-check(O.style.buttons[1]:GetChecked(), "regular picked")
+check(O.styleName:GetText() == "Regular  1/10", "regular shown: " .. tostring(O.styleName:GetText()))
+Click(O.styleNext)
+check(S.style == "mid" and O.styleName:GetText() == "Mid  2/10", "> steps to the next look")
+Click(O.stylePrev); Click(O.stylePrev)
+check(S.style == "icons", "< steps back, round the end")
+SlashCmdList.KRAKENTIP("regular")
 Click(O.position.buttons[2])
 check(S.position == "tooltip", "radio switches to the tooltip spot")
 Click(O.sampleButton)
 check(Card:IsSampleShown(), "sample card shown")
 check(O.sampleButton:GetText() == "Hide the sample card", "button says hide")
 check(rowText(3) == "Killed with Thalianne: 42", "sample filled")
-Click(O.style.buttons[3])
+SlashCmdList.KRAKENTIP("minimal")
 check(S.style == "minimal" and Card:IsSampleShown() and F() == Card.frames.minimal, "the sample switches to minimal")
 check(not Card.frames.regular:IsShown(), "the regular sample is gone")
 GameTooltip:SetItem("Linen Cloth")
@@ -325,8 +370,13 @@ local mm = KrakentipMinimapButton
 check(mm and mm:IsShown(), "there")
 Click(mm, "RightButton")
 check(S.style == "mid", "right-click: next style")
-Click(mm, "RightButton"); Click(mm, "RightButton")
+for _ = 1, 9 do Click(mm, "RightButton") end
 check(S.style == "regular", "and round again")
+SHIFT = true
+Click(mm)
+check(KT.Compare.frame:IsShown(), "shift-click: compare")
+SHIFT = false
+KT.Compare.frame:Hide()
 Click(mm)
 check(O.frame:IsShown(), "click opens the options")
 O.frame:Hide()

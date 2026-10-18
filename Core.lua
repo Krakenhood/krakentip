@@ -119,12 +119,12 @@ local function fill(t, defaults)
 end
 
 KT.POSITIONS = { "mouse", "tooltip" }
-KT.STYLES = { "regular", "mid", "minimal" }
+KT.STYLES = { "regular", "mid", "minimal", "classic", "wide", "plate", "portrait", "column", "bar", "icons" }
 
 local DEFAULTS = {
     settings = {
         enabled = true,     -- false: units get the game's own tooltip
-        style = "regular",  -- "regular", "mid" or "minimal" (Layouts.lua)
+        style = "regular",  -- one of KT.STYLES (Layouts.lua)
         position = "mouse", -- "mouse": next to the cursor; "tooltip": where the game puts tooltips (Edit Mode moves it)
         scale = 1,
         minimap = { angle = 200, hide = false },
@@ -145,7 +145,7 @@ function KT:LoadDB()
     self.db = db
     local s = db.settings
     if s.position ~= "mouse" and s.position ~= "tooltip" then s.position = "mouse" end
-    if s.style ~= "regular" and s.style ~= "mid" and s.style ~= "minimal" then s.style = "regular" end
+    if not KT.STYLE_LABEL[s.style] then s.style = "regular" end
     s.players = nil -- from 0.1.0: every unit gets the card now
     s.scale = math.max(0.6, math.min(1.6, tonumber(s.scale) or 1))
 end
@@ -168,14 +168,31 @@ local HELP = {
     { "/kt", "open or close the options" },
     { "/kt mouse", "show the card next to the mouse" },
     { "/kt tooltip", "show the card where the game puts tooltips (move that in Edit Mode)" },
-    { "/kt style", "switch the look: regular, mid, minimal (or /kt style mid)" },
+    { "/kt style", "switch to the next look (or /kt style plate, see /kt styles)" },
+    { "/kt styles", "list the looks" },
+    { "/kt compare", "see every look side by side; hover a unit to fill them" },
     { "/kt scale 1.2", "make the card bigger or smaller (0.6 to 1.6)" },
     { "/kt sample", "show or hide a sample card, to try the settings" },
     { "/kt blizzard", "switch between the card and the game's own unit tooltips" },
     { "/kt minimap", "show or hide the minimap button" },
 }
 
-KT.STYLE_LABEL = { regular = "Regular", mid = "Mid", minimal = "Minimal" }
+KT.STYLE_LABEL = {
+    regular = "Regular", mid = "Mid", minimal = "Minimal", classic = "Classic", wide = "Wide",
+    plate = "Plate", portrait = "Portrait", column = "Column", bar = "Bar", icons = "Icons",
+}
+KT.STYLE_HINT = {
+    regular = "The full card: a big bar and a line for each thing.",
+    mid = "Name, type and target at a glance, a thin bar.",
+    minimal = "One line: level, name, health, target.",
+    classic = "The game's own tooltip, line by line, in gold.",
+    wide = "A low banner: the name left, the bar right.",
+    plate = "Small and centred, like a nameplate.",
+    portrait = "Like the target frame, with the unit's face.",
+    column = "Narrow and tall, everything centred.",
+    bar = "The health bar is the card, the name on it.",
+    icons = "Name and bar, the details as small icons.",
+}
 
 KT.POSITION_LABEL = {
     mouse = "next to the mouse",
@@ -202,7 +219,7 @@ function KT:SetStyle(style)
             if st == s.style then style = self.STYLES[i % #self.STYLES + 1] end
         end
     end
-    if not self.STYLE_LABEL[style] then return self:Print("Styles: regular, mid, minimal.") end
+    if not self.STYLE_LABEL[style] then return self:Print("Styles: " .. table.concat(self.STYLES, ", ") .. ".") end
     s.style = style
     self:Printf("Card style: %s.", self.STYLE_LABEL[style])
     self:Fire("SETTINGS")
@@ -216,9 +233,13 @@ local commands = {
     off = function() KT:SetEnabled(false) end,
     blizzard = function() KT:SetEnabled(not KT.db.settings.enabled) end,
     style = function(arg) KT:SetStyle(arg ~= "" and arg or nil) end,
-    regular = function() KT:SetStyle("regular") end,
-    mid = function() KT:SetStyle("mid") end,
-    minimal = function() KT:SetStyle("minimal") end,
+    styles = function()
+        KT:Print("looks (/kt style <name>):")
+        for _, st in ipairs(KT.STYLES) do
+            KT:Print(("  |cffffd100%s|r%s  %s"):format(st, st == KT.db.settings.style and " (now)" or "", KT.STYLE_HINT[st]))
+        end
+    end,
+    compare = function() KT.Compare:Toggle() end,
     minimap = function()
         local m = KT.db.settings.minimap
         m.hide = not m.hide
@@ -248,6 +269,8 @@ SlashCmdList.KRAKENTIP = function(msg)
         KT.Options:Toggle()
     elseif commands[cmd] then
         commands[cmd](arg)
+    elseif KT.STYLE_LABEL[cmd] then
+        KT:SetStyle(cmd) -- /kt plate, /kt minimal
     else
         commands.help()
     end

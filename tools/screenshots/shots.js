@@ -132,7 +132,113 @@ function minimalHTML(c) {
     <div style="position:relative;height:${H}px;display:flex;align-items:center;gap:6px;padding:0 6px;white-space:nowrap;text-shadow:1px -1px 0 rgba(0,0,0,.8)">${parts.join('')}</div></div>`, w: 0, h: H };
 }
 
-const LOOK = { regular: regularHTML, mid: midHTML, minimal: minimalHTML };
+// the game's colour codes as spans
+const codes = s => esc(s).replace(/\|c[0-9a-f]{2}([0-9a-f]{6})(.*?)\|r/gi, (_, hex, t) => `<span style="color:#${hex}">${t}</span>`);
+const T = (x, y, text, size, color, extra = '') => `<div class="t" style="left:${x}px;top:${y}px;font-size:${size}px;color:${rgb(color)};${extra}">${codes(text)}</div>`;
+const TR = (x, y, text, size, color, extra = '') => `<div class="t" style="right:${x}px;top:${y}px;font-size:${size}px;color:${rgb(color)};${extra}">${codes(text)}</div>`;
+const OUT = 'text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;font-weight:700;';
+const box = (W, H, s, thin = true) => ({ html: `<div style="position:relative;width:${W}px;height:${H}px">${thin ? '<div class="thin"></div>' : ''}${s}</div>`, w: W, h: H });
+const ring = (x, y, size, c) => `<div style="position:absolute;left:${x}px;top:${y}px;width:${size}px;height:${size}px;border-radius:50%;border:2px solid #c99a2e;
+  background:radial-gradient(circle at 40% 35%,#3a2a20,#120c08);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1px #000">
+  ${c.skull ? skull(size * 0.5) : `<span class="out" style="font-size:${size >= 26 ? 12 : 10}px;font-weight:700;color:${rgb(c.levelColor)}">${c.level}</span>`}</div>`;
+const DIM = [0.78, 0.72, 0.60], WHITE = [1, 1, 1], GOLD = [1, 0.82, 0];
+
+// ---------------------------------------------------------------- Classic (Layouts.classic)
+function classicHTML(c) {
+  let s = T(8, 7, c.name, 13, c.nameColor), y = 24;
+  for (const [text, color] of c.lines) { s += T(8, y, text, 11, color); y += 14; }
+  s += bar(c, 8, y + 4, c.width - 16, 8, 9);
+  return box(c.width, c.height, s);
+}
+
+// ---------------------------------------------------------------- Wide (Layouts.wide)
+function wideHTML(c) {
+  const W = c.width, SPLIT = 190;
+  let s = ring(7, 8, 32, c) + T(46, 6, c.name, 15, c.nameColor, `font-family:Caladea,serif;width:${SPLIT - 52}px;overflow:hidden`)
+    + T(46, 27, c.sub, 10, DIM) + (c.tag ? `<div class="t tag" style="left:${46 + c.sub.length * 5 + 6}px;top:27px;height:11px;line-height:11px;font-size:8px">${esc(c.tag)}</div>` : '')
+    + bar(c, SPLIT, 8, W - SPLIT - 8, 14, 10);
+  if (c.left) s += T(SPLIT, 28, c.left, 10, c.leftColor);
+  if (c.right) s += TR(8, 28, c.right, 10, c.rightColor);
+  if (c.quest) s += T(46, 44, c.quest, 10, WHITE);
+  return box(W, c.height, s);
+}
+
+// ---------------------------------------------------------------- Plate (Layouts.plate)
+function plateHTML(c) {
+  const W = c.width;
+  let s = T(6, 4, c.name, 12, c.nameColor, `width:${W - 12}px;text-align:center`)
+    + (c.skull ? `<div class="t" style="left:12px;top:20px">${skull(11)}</div>` : T(4, 21, c.level, 10, c.levelColor, OUT + 'width:22px;text-align:right'))
+    + bar(c, 30, 22, W - 38, 10, 9);
+  if (c.target) s += T(0, 36, c.target, 10, c.targetColor, `width:${W}px;text-align:center`);
+  return box(W, c.height, s);
+}
+
+// ---------------------------------------------------------------- Portrait (Layouts.portrait)
+const FACE_TINT = { Ability_Hunter_Pet_Wolf: ['#8a7a66', '#2b241c'], INV_Misc_Head_Human_01: ['#c9a27e', '#4a3322'] };
+function portraitHTML(c) {
+  const W = c.width, FACE = 52;
+  const icon = String(c.face || '').split('\\').pop();
+  const [a, b] = FACE_TINT[icon] || (String(c.face).startsWith('portrait:') ? ['#8a7a66', '#2b241c'] : ['#888', '#333']);
+  let s = `<div style="position:absolute;left:6px;top:6px;width:${FACE}px;height:${FACE}px;border-radius:50%;background:radial-gradient(circle at 40% 35%,${a},${b});box-shadow:0 0 0 3px #c99a2e,0 0 0 4px #000"></div>`
+    + ring(2, 40, 22, c)
+    + `<div style="position:absolute;left:${FACE + 12}px;right:8px;top:6px;height:18px;background:rgba(0,0,0,.45)"></div>`
+    + T(FACE + 16, 7, c.name, 13, c.nameColor, 'font-family:Caladea,serif')
+    + bar(c, FACE + 12, 28, W - FACE - 20, 13, 10)
+    + T(FACE + 12, 46, c.sub, 10, DIM);
+  if (c.target) s += TR(8, 46, c.target, 10, c.targetColor);
+  let y = 62;
+  for (const [text] of c.quests) { s += T(FACE + 12, y, text, 10, WHITE); y += 12; }
+  return box(W, c.height, s);
+}
+
+// ---------------------------------------------------------------- Column (Layouts.column), as a flow
+function columnHTML(c) {
+  const W = c.width;
+  let s = `<div style="position:relative;display:flex;flex-direction:column;align-items:center;padding:8px 8px 8px;text-align:center;text-shadow:1px -1px 0 rgba(0,0,0,.8)">
+    <div style="position:relative;width:30px;height:30px;margin-bottom:6px">${ring(0, 0, 30, c)}</div>
+    <div class="title" style="font-size:14px;line-height:16px;color:${rgb(c.nameColor)};margin-bottom:2px">${esc(c.name)}</div>
+    <div style="font-size:10px;color:${rgb(DIM)};margin-bottom:2px">${esc(c.sub)}</div>
+    ${c.tag ? `<div class="tag" style="height:11px;line-height:11px;font-size:8px;margin:1px 0 3px">${esc(c.tag)}</div>` : ''}
+    <div style="position:relative;width:${W - 16}px;height:12px;margin:3px 0 8px">${bar(c, 0, 0, W - 16, 12, 10)}</div>`;
+  for (const [text, size, color] of c.rows) s += `<div style="font-size:${size}px;line-height:${size + 3}px;color:${rgb(color)}">${codes(text)}</div>`;
+  s += '</div>';
+  return { html: `<div style="position:relative;width:${W}px"><div class="dialog" style="left:-7px;top:-7px;right:-7px;bottom:-7px;width:auto;height:auto"></div>${s}</div>`, w: W, h: c.height };
+}
+
+// ---------------------------------------------------------------- Bar (Layouts.bar)
+function barHTML(c) {
+  const W = c.width, BH = 22, BOX = 26;
+  let s = `<div style="position:absolute;left:2px;top:2px;width:${BOX - 2}px;height:${BH}px;background:rgba(0,0,0,.5)"></div>`
+    + (c.skull ? `<div class="t" style="left:7px;top:6px">${skull(12)}</div>` : T(0, 6, c.level, 11, c.levelColor, OUT + `width:${BOX + 2}px;text-align:center`))
+    + bar(c, BOX + 2, 3, W - BOX - 5, BH - 2, 11, false)
+    + T(BOX + 7, 6, c.name, 12, c.nameColor, OUT + 'font-weight:400')
+    + TR(7, 7, c.hp, 11, WHITE, OUT);
+  if (c.info !== undefined) s += T(6, BH + 6, c.info, 10, DIM);
+  if (c.target) s += TR(6, BH + 6, c.target, 10, c.targetColor);
+  return box(W, c.height, s);
+}
+
+// ---------------------------------------------------------------- Icons (Layouts.icons)
+const CHIP = { Attack: '⚔', Ability_DualWield: '⚔', ActiveQuestIcon: '?', AvailableQuestIcon: '!', Achievement_Reputation_01: '♥', INV_Shirt_GuildTabard_01: '⚑', INV_Misc_Note_01: '⚑' };
+const CHIP_TINT = { Attack: '#ccc', Ability_DualWield: '#e07a2b', ActiveQuestIcon: '#ffd100', Achievement_Reputation_01: '#4fd1c5', INV_Shirt_GuildTabard_01: '#7aa35a' };
+function iconsHTML(c) {
+  const W = c.width;
+  let s = c.skull ? `<div class="t" style="left:7px;top:6px">${skull(12)}</div>` : T(7, 6, c.level, 12, c.levelColor, OUT);
+  const nx = 7 + (c.skull ? 13 : String(c.level).length * 7) + 5;
+  s += T(nx, 5, c.name, 13, c.nameColor);
+  if (c.tag) s += `<div class="t tag" style="left:${nx + c.name.length * 6.6 + 6}px;top:8px;height:11px;line-height:11px;font-size:8px">${esc(c.tag)}</div>`;
+  s += bar(c, 7, 25, W - 14 - 34, 8, 9, false) + T(W - 7 - 30, 23, c.hp, 9, WHITE, OUT);
+  let x = 7;
+  for (const [path, text, color] of c.chips) {
+    const key = String(path).split('\\').pop();
+    s += `<div class="t" style="left:${x}px;top:39px;font-size:10px;color:${rgb(color)}"><span style="display:inline-block;width:13px;height:13px;line-height:13px;margin-right:2px;text-align:center;font-size:10px;border-radius:2px;background:#1a1612;box-shadow:0 0 0 1px #6b5a2e;color:${CHIP_TINT[key] || '#ccc'}">${CHIP[key] || '•'}</span>${esc(text)}</div>`;
+    x += 15 + String(text).length * 5.5 + 8;
+  }
+  return box(W, c.height, s);
+}
+
+const LOOK = { regular: regularHTML, mid: midHTML, minimal: minimalHTML, classic: classicHTML, wide: wideHTML, plate: plateHTML,
+  portrait: portraitHTML, column: columnHTML, bar: barHTML, icons: iconsHTML };
 const card = (style, unit) => style === 'sample' ? regularHTML(data.sample) : LOOK[style](data.cards[style][unit]);
 const at = (x, y, html, scale) => `<div style="position:absolute;left:${x}px;top:${y}px;transform:scale(${scale});transform-origin:top left">${html}</div>`;
 
@@ -162,24 +268,30 @@ function mouseScene() {
     'Regular, next to the mouse: the card follows the cursor, so your eyes stay on the fight.');
 }
 
-function stylesScene() {
-  const r = card('regular', 'wolf'), m = card('mid', 'wolf'), n = card('minimal', 'wolf');
-  const x = 150;
-  let y = 40, inner = '';
-  inner += `<div class="label" style="left:40px;top:${y + 8}px">Regular</div>${at(x, y, r.html, SCALE)}`;
-  y += r.h * SCALE + 40;
-  inner += `<div class="label" style="left:40px;top:${y + 8}px">Mid</div>${at(x, y, m.html, SCALE)}`;
-  y += m.h * SCALE + 40;
-  inner += `<div class="label" style="left:40px;top:${y + 4}px">Minimal</div>${at(x, y, n.html, SCALE)}`;
-  return scene(900, y + 22 * SCALE + 70, inner, 'Three looks for the same wolf. Pick one in /kt, or right-click the minimap button to go through them.');
-}
-
-function friendsScene() {
-  const a = card('regular', 'friend'), b = card('regular', 'innkeeper');
-  const c = card('mid', 'friend'), d = card('minimal', 'innkeeper');
-  const inner = at(50, 40, a.html, SCALE) + at(470, 40, b.html, SCALE)
-    + at(50, 40 + a.h * SCALE + 40, c.html, SCALE) + at(470, 40 + a.h * SCALE + 40, d.html, SCALE);
-  return scene(900, 40 + a.h * SCALE + 40 + c.h * SCALE + 70, inner, 'Friends get the card too: players in their class colour with race, class and guild; NPCs with their title.');
+// the Compare window (Compare.lua): every look in two columns, each into the shorter one
+function compareScene(unit, caption) {
+  const PAD = 16, GAP = 12, LABEL = 16, COL_W = 340, TOP = 52, Z = 1.25; // as in Compare.lua
+  const heights = [TOP, TOP];
+  let cells = '';
+  for (const style of data.styles) {
+    const c = data.cards[style][unit], look = LOOK[style](c), now = style === 'regular';
+    const col = heights[0] <= heights[1] ? 0 : 1, x = PAD + col * (COL_W + GAP), y = heights[col];
+    cells += `<div class="t" style="left:${x + 4}px;top:${y + 2}px;font-size:12px;color:${now ? C.gold : C.dim}">${esc(data.labels[style])}${now ? '  (in use)' : ''}<span style="font-size:10px;color:${C.faint};margin-left:8px">${esc(data.hints[style])}</span></div>
+      <div style="position:absolute;left:${x + 4}px;top:${y + LABEL + 10}px">${look.html}</div>`;
+    heights[col] += LABEL + 10 + c.height + 8 + GAP;
+  }
+  const W = COL_W * 2 + PAD * 2 + GAP, H = Math.max(...heights) + PAD - GAP;
+  const showing = unit === 'wolf' ? 'Showing a sample wolf. Hover any creature or player to see it in every look.'
+    : 'Showing the unit you hovered last. Hover another to compare.';
+  const win = `<div style="position:relative;width:${W}px;height:${H}px">
+    <div class="dialog" style="left:-7px;top:-7px;width:${W + 14}px;height:${H + 14}px"></div>
+    <div style="position:absolute;left:2px;right:2px;top:2px;height:26px;background:rgba(0,0,0,.45)"></div>
+    <div class="t title" style="left:${PAD}px;top:5px;font-size:19px;color:${C.gold}">Krakentip</div>
+    <div class="t" style="left:${PAD + 92}px;top:11px;font-size:11px;color:${C.dim}">every look side by side. Click one to use it.</div>
+    <div class="t" style="right:8px;top:4px;font-size:16px;color:${C.dim};font-weight:700">✕</div>
+    <div class="t" style="left:${PAD}px;top:32px;font-size:12px">${showing}</div>
+    ${cells}</div>`;
+  return scene(W * Z + 60, H * Z + 90, at(30, 30, win, Z), caption);
 }
 
 function spotScene() {
@@ -217,7 +329,13 @@ function optionsHTML(o) {
     }
   };
   s += heading('Where the card shows', y); y += 26; radios(o.position); y += 8;
-  s += heading('Style', y); y += 26; radios(o.style); y += 8;
+  s += heading('Style', y); y += 26;
+  s += `<div class="t" style="left:${OP + 2}px;top:${y + 1}px;font-size:15px;color:${C.dim}">&lt;</div>
+    <div class="t" style="left:${OP + 22}px;width:110px;text-align:center;top:${y + 3}px;font-size:13px;color:${C.gold}">${esc(o.styleName)}</div>
+    <div class="t" style="left:${OP + 138}px;top:${y + 1}px;font-size:15px;color:${C.dim}">&gt;</div>
+    <div class="btn" style="right:${OP}px;top:${y}px;width:130px;height:22px;line-height:20px">Compare all</div>
+    <div class="t" style="left:${OP + 2}px;top:${y + 26}px;font-size:11px;color:${C.dim}">${esc(o.styleHint)}</div>`;
+  y += 50;
   s += heading('On the card', y); y += 24;
   o.checks.forEach(([label, on], i) => {
     if (i === 4) { y += 6; s += heading('The card', y); y += 24; }
@@ -246,8 +364,8 @@ function optionsScene() {
 // ---------------------------------------------------------------- photograph
 const scenes = [
   ['1-card-at-mouse', mouseScene()],
-  ['2-three-styles', stylesScene()],
-  ['3-friends-too', friendsScene()],
+  ['2-compare-creature', compareScene('wolf', '/kt compare: all ten looks side by side, here with the sample wolf.')],
+  ['3-compare-player', compareScene('friend', 'Hover any unit while Compare is open, and every look shows it: here a friendly player.')],
   ['4-card-tooltip-spot', spotScene()],
   ['5-boss-and-neutral', pairScene()],
   ['6-options', optionsScene()],
