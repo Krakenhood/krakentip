@@ -101,7 +101,7 @@ end
 local function barText(f, b, x, y, w, h)
     if h < 8 then return b.text:Hide() end
     local size = min(11, max(8, h - 3))
-    b.text:SetFont(Wg.FONT, size, "OUTLINE")
+    Wg.SetFont(b.text, size, "OUTLINE")
     b.text._size = size
     at(f, b.text, "TOP", x + w / 2, y + floor((h - size) / 2))
     b.text:Show()
@@ -571,7 +571,7 @@ function N.Fill(f, info, s, wk, hk)
     x = PAD
     placeBar(f, f.bar, x, y + floor((12 - bh) / 2), bw, bh)
     Layouts.SetHealth(f.bar, info, s, true)
-    f.pct:SetFont(Wg.FONT, 10, "OUTLINE")
+    Wg.SetFont(f.pct, 10, "OUTLINE")
     f.pct._size = 10
     at(f, f.pct, "TOPLEFT", x + bw + 4, y)
     f.pct:Show()
@@ -867,12 +867,12 @@ function BA.Fill(f, info, s, wk, hk)
     placeBar(f, f.bar, BOX + 2, 3, W - BOX - 5, bh - 2)
     Layouts.SetHealth(f.bar, info, s, true)
     local size = min(11, max(8, bh - 8))
-    f.bar.text:SetFont(Wg.FONT, size, "OUTLINE")
+    Wg.SetFont(f.bar.text, size, "OUTLINE")
     f.bar.text._size = size
     at(f, f.bar.text, "TOPRIGHT", W - 7, 3 + floor((bh - 2 - size) / 2))
     f.bar.text:Show()
     local nsize = min(12, max(9, bh - 8))
-    f.name:SetFont(Wg.FONT, nsize, "OUTLINE")
+    Wg.SetFont(f.name, nsize, "OUTLINE")
     f.name._size = nsize
     at(f, f.name, "TOPLEFT", BOX + 7, 3 + floor((bh - 2 - nsize) / 2))
     f.name:SetWidth(W - BOX - 7 - 46)
@@ -978,7 +978,7 @@ function IC.Fill(f, info, s, wk, hk)
     local bw = W - PAD * 2 - 34
     placeBar(f, f.bar, PAD, y, bw, bh)
     Layouts.SetHealth(f.bar, info, s, true)
-    f.bar.text:SetFont(Wg.FONT, 9, "OUTLINE")
+    Wg.SetFont(f.bar.text, 9, "OUTLINE")
     f.bar.text._size = 9
     at(f, f.bar.text, "TOPLEFT", PAD + bw + 4, y + floor((bh - 9) / 2))
     f.bar.text:Show()

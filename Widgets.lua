@@ -12,6 +12,59 @@ KT.Widgets = Wg
 
 Wg.FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 
+--------------------------------------------------------------------------------
+-- Fonts. A single font file only has the letters it was made for: the
+-- game's own FRIZQT__.TTF has no Cyrillic, Korean or Chinese, so a Russian
+-- name set in it shows as boxes. The game's text uses font families that
+-- switch to a matching file for each alphabet; Wg.SetFont makes the same
+-- kind of family for every size we use.
+--------------------------------------------------------------------------------
+
+local ALPHABETS = {
+    normal = {
+        roman = Wg.FONT,
+        russian = "Fonts\\FRIZQT___CYR.TTF",
+        korean = "Fonts\\2002.TTF",
+        simplifiedchinese = "Fonts\\ARKai_T.ttf",
+        traditionalchinese = "Fonts\\blei00d.TTF",
+    },
+    title = {
+        roman = "Fonts\\MORPHEUS.TTF",
+        russian = "Fonts\\MORPHEUS_CYR.TTF",
+        korean = "Fonts\\2002.TTF",
+        simplifiedchinese = "Fonts\\ARKai_T.ttf",
+        traditionalchinese = "Fonts\\blei00d.TTF",
+    },
+}
+local families = {}
+
+local function family(kind, size, flags)
+    local key = kind .. size .. flags
+    local font = families[key]
+    if font ~= nil then return font end
+    font = false
+    if CreateFontFamily then
+        local members = {}
+        for _, alphabet in ipairs({ "roman", "korean", "simplifiedchinese", "traditionalchinese", "russian" }) do
+            members[#members + 1] = { alphabet = alphabet, file = ALPHABETS[kind][alphabet], height = size, flags = flags }
+        end
+        local ok, f = pcall(CreateFontFamily, "KrakentipFont_" .. key:gsub("%W", ""), members)
+        if ok and f then font = f end
+    end
+    families[key] = font
+    return font
+end
+
+-- `kind` "normal" (the default) or "title" (the fantasy font).
+function Wg.SetFont(fs, size, flags, kind)
+    kind, flags = kind or "normal", flags or ""
+    local font = family(kind, size, flags)
+    if font and pcall(fs.SetFontObject, fs, font) then return end
+    -- a client without font families: the plain file, Latin letters only
+    if kind == "title" and pcall(fs.SetFont, fs, ALPHABETS.title.roman, size, flags) then return end
+    fs:SetFont(Wg.FONT, kind == "title" and size - 2 or size, flags)
+end
+
 function Wg.rgb(c) return c[1], c[2], c[3] end
 
 -- the first file the client actually has (a missing file shows as a green square)
@@ -36,7 +89,7 @@ end
 
 function Wg.Text(parent, size, color, justify, outline)
     local fs = parent:CreateFontString(nil, "OVERLAY")
-    fs:SetFont(Wg.FONT, size or 12, outline or "")
+    Wg.SetFont(fs, size or 12, outline)
     fs:SetShadowOffset(1, -1)
     fs:SetShadowColor(0, 0, 0, 0.8)
     fs:SetTextColor(Wg.rgb(color or T.text))
@@ -48,7 +101,7 @@ end
 -- A title in the game's fantasy font and gold, with a fallback if the font is missing.
 function Wg.Title(parent, size)
     local fs = Wg.Text(parent, size, T.gold)
-    if not pcall(fs.SetFont, fs, KT.Files.titleFont, size, "") then fs:SetFont(Wg.FONT, size - 2, "") end
+    Wg.SetFont(fs, size, "", "title")
     return fs
 end
 

@@ -89,6 +89,15 @@ function Object:SetChecked(v) rawset(self, "_checked", v) end
 function Object:GetChecked() return self._checked end
 function Object:SetFont(_, size) rawset(self, "_size", size); return true end
 function Object:SetTexture(t) rawset(self, "_tex", t) end
+-- font families: one file per alphabet, as the game builds them
+FONT_FAMILIES = {}
+function CreateFontFamily(name, members)
+    if FONT_FAMILIES[name] then error("a font family called " .. name .. " exists already") end
+    local f = { _name = name, _members = members, _size = members[1].height }
+    FONT_FAMILIES[name] = f
+    return f
+end
+function Object:SetFontObject(f) rawset(self, "_size", f._size); rawset(self, "_family", f) end
 
 function CreateFrame(kind, name, parent, template)
     local f = new(kind or "Frame", parent, name)

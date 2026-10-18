@@ -2,7 +2,7 @@
 ## Title: |cff4fd1c5Kraken|rtip
 ## Notes: Creatures and players get a card in the game's own style instead of the unit tooltip, next to your mouse or where the game puts tooltips. Item, spell and menu tooltips stay as they are.
 ## Author: Bernhard
-## Version: 0.4.0
+## Version: 0.4.1
 ## IconTexture: Interface\Icons\Ability_Hunter_SniperShot
 ## AddonCompartmentFunc: Krakentip_OnAddonCompartmentClick
 ## SavedVariables: KrakentipDB

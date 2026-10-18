@@ -491,6 +491,32 @@ SlashCmdList.KRAKENTIP("minimap")
 check(not mm:IsShown(), "/kt minimap hides it")
 SlashCmdList.KRAKENTIP("minimap")
 
+section("names in any alphabet: the fonts are families with a file for each")
+UNITS.ivan = { guid = "Player-1-0000DDDD", name = "Иван", class = "WARRIOR", className = "Warrior", race = "Orc", level = 30, player = true, hostile = true, hp = 900, hpMax = 900 }
+UNITS.rogue.target = "ivan"
+for _, style in ipairs(KT.STYLES) do
+    SlashCmdList.KRAKENTIP(style)
+    hover("rogue")
+    for _, p in ipairs(F().parts) do
+        if p._kind == "text" then
+            local fam = p._family
+            local files = {}
+            for _, m in ipairs(fam and fam._members or {}) do files[m.alphabet] = m.file end
+            check(fam and files.russian and files.korean and files.roman, style .. ": a font family for every text")
+            if p._title then check(files.russian == "Fonts\\MORPHEUS_CYR.TTF", style .. ": the fantasy font in Cyrillic too") end
+        end
+    end
+    leave()
+end
+SlashCmdList.KRAKENTIP("regular")
+hover("rogue")
+check(rows():find("Иван", 1, true), "the target's name as it is: " .. rows())
+leave()
+UNITS.rogue.target = "player"
+local count = 0
+for _ in pairs(FONT_FAMILIES) do count = count + 1 end
+check(count < 40, count .. " font families, one per size and outline")
+
 section("errors")
 check(#ERRORS == 0, #ERRORS .. " errors raised")
 
