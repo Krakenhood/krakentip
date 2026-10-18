@@ -130,6 +130,19 @@ RAID_CLASS_COLORS = { MAGE = { r = 0.25, g = 0.78, b = 0.92 }, WARRIOR = { r = 0
 C_AddOns = { GetAddOnMetadata = function() return "0.1.0-test" end }
 function GetQuestGreenRange() return 8 end
 
+-- timers: C_Timer.After(0) runs on the next frame, NextFrame() plays it
+TIMERS = {}
+C_Timer = { After = function(sec, fn) TIMERS[#TIMERS + 1] = fn end }
+function NextFrame()
+    local due = TIMERS
+    TIMERS = {}
+    for _, fn in ipairs(due) do fn() end
+end
+function hooksecurefunc(t, name, fn)
+    local old = t[name]
+    rawset(t, name, function(...) local a, b, c = old(...); fn(...); return a, b, c end)
+end
+
 -- the game's tooltip ------------------------------------------------------------
 -- SetUnit/SetItem act like the game: clear, fill lines, run the post-calls, show.
 Enum = {
@@ -152,6 +165,16 @@ local function clearTip(tip)
     local s = tip._scripts.OnTooltipCleared
     if s then s(tip) end
 end
+function GameTooltip:SetOwner(owner)
+    rawset(self, "_owner", owner)
+    clearTip(self)
+end
+function GameTooltip:AddLine(text)
+    local i = #self._lines + 1
+    local fs = _G["GameTooltipTextLeft" .. i] or CreateFrame("FontString", "GameTooltipTextLeft" .. i)
+    fs:SetText(text)
+    self._lines[i] = { leftText = text }
+end
 local function setLines(tip, lines)
     for i, l in ipairs(lines) do
         local fs = _G["GameTooltipTextLeft" .. i] or CreateFrame("FontString", "GameTooltipTextLeft" .. i)
@@ -160,13 +183,25 @@ local function setLines(tip, lines)
         tip._lines[i] = l
     end
 end
+-- the default anchor (GameTooltip_SetDefaultAnchor) takes the tooltip first
 function GameTooltip:SetUnit(unit)
+    self:SetOwner(UIParent)
+    self:FillUnit(unit)
+end
+-- what the game does when it redraws the tooltip of the unit it already shows,
+-- as it does once more when the mouse leaves the creature: no new owner
+function GameTooltip:Refresh()
+    local unit = self._unit
     clearTip(self)
+    self:FillUnit(unit)
+end
+function GameTooltip:FillUnit(unit)
     rawset(self, "_unit", unit)
     -- the default anchor: bottom right, where Edit Mode puts tooltips
     self:ClearAllPoints()
     self:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -95, 110)
-    local u = UNITS[unit]
+    local u = UNITS[unit] or LAST_UNIT
+    LAST_UNIT = u
     local lines = { { leftText = u.name, type = 2 }, { leftText = "Level " .. tostring(u.level) .. " " .. tostring(u.ctype or ""), type = 0 } }
     for _, q in ipairs(u.questLines or {}) do lines[#lines + 1] = q end
     setLines(self, lines)
@@ -175,7 +210,7 @@ function GameTooltip:SetUnit(unit)
     self:Show()
 end
 function GameTooltip:SetItem(name)
-    clearTip(self)
+    self:SetOwner(UIParent)
     setLines(self, { { leftText = name } })
     for _, fn in ipairs(postCalls[0] or {}) do fn(self, { type = 0 }) end
     self:Show()

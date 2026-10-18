@@ -390,6 +390,19 @@ function Card:Release(force)
     self.frame:Hide()
 end
 
+-- Is the card standing in for the creature under the mouse right now?
+function Card:Following()
+    return self.info and self.info.unit == "mouseover" and not self.fading and self.frame:IsShown() or false
+end
+
+-- The creature went away under the mouse: the card fades quickly, and the
+-- game's tooltip, which would linger and fade for seconds, goes right away.
+function Card:LetGo()
+    if self.fading or not (self.frame and self.frame:IsShown()) or self.sample then return end
+    self.fading = 0.2
+    if KT.Hook.hidden then KT.Hook:Dismiss() end
+end
+
 function Card:IsSampleShown()
     return self.sample and self.frame and self.frame:IsShown() or false
 end
@@ -427,19 +440,13 @@ function Card:OnUpdate(elapsed)
     local info = self.info
     if not info then return f:Hide() end
 
-    -- the creature went away under the mouse: the card fades quickly, and the
-    -- game's tooltip, which would linger and fade for seconds, goes right away
     if self.fading then
         self.fading = self.fading - elapsed
         if self.fading <= 0 then return self:Release(true) end
         f:SetAlpha(self.fading / 0.2)
         return
     end
-    if info.unit == "mouseover" and not call(UnitExists, "mouseover") then
-        self.fading = 0.2
-        if KT.Hook.hidden then pcall(GameTooltip.Hide, GameTooltip) end
-        return
-    end
+    if info.unit == "mouseover" and not call(UnitExists, "mouseover") then return self:LetGo() end
 
     since = since + elapsed
     if since < 0.1 then return end

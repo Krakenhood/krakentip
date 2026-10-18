@@ -77,8 +77,9 @@ function Hook:Wants(unit)
     return true
 end
 
--- Puts the game's tooltip back the way it was.
-function Hook:Restore()
+-- Makes the game's tooltip visible again, for whatever it shows next.
+function Hook:Reveal()
+    self.cleared = nil
     if self.hidden then
         GameTooltip:SetAlpha(1)
         self.hidden = nil
@@ -86,10 +87,40 @@ function Hook:Restore()
     Card:Release()
 end
 
+-- A new owner took the tooltip (another unit, an item, a button): it's the
+-- game's again, and nothing we let go of earlier holds anymore.
+function Hook:Restore()
+    self.gone = nil
+    self:Reveal()
+end
+
+-- The enemy left the mouse. The game would redraw its tooltip and fade it for
+-- seconds; instead it goes now, and stays gone until a new owner takes it.
+function Hook:Dismiss()
+    self.gone = true
+    pcall(GameTooltip.Hide, GameTooltip)
+end
+
+-- The tooltip was emptied. Often that's the game redrawing the same enemy
+-- (OnUnit follows at once and decides); if nothing follows in this frame, the
+-- tooltip shows something else now and it's the game's again.
+function Hook:OnCleared()
+    if not self.hidden then return end
+    if not (C_Timer and C_Timer.After) then return self:Reveal() end
+    self.cleared = true
+    C_Timer.After(0, function()
+        if Hook.cleared then KT.dispatch(Hook.Reveal, Hook) end
+    end)
+end
+
 function Hook:OnUnit(tip, data)
     if tip ~= GameTooltip then return end
+    self.cleared = nil
+    if self.gone then return end -- the redraw of the enemy we let go of
+    -- the enemy under the mouse is gone and this is the game's redraw: let go
+    if Card:Following() and not call(UnitExists, "mouseover") then return Card:LetGo() end
     local unit = unitOf(tip)
-    if not self:Wants(unit) then return self:Restore() end
+    if not self:Wants(unit) then return self:Reveal() end
     local quests = (data and data.lines and next(QUEST_TYPES)) and questLinesFromData(data) or questLinesFromText(tip)
     Card:ShowFor(Card:Gather(unit, quests))
     GameTooltip:SetAlpha(0)
@@ -108,10 +139,15 @@ function Hook:Install()
             KT.dispatch(Hook.OnUnit, Hook, tip)
         end)
     end
-    -- whatever the tooltip shows next (or nothing at all), it's the game's again
-    local function restore() KT.dispatch(Hook.Restore, Hook) end
-    pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipCleared", restore)
-    GameTooltip:HookScript("OnHide", restore)
+    if hooksecurefunc then
+        hooksecurefunc(GameTooltip, "SetOwner", function() KT.dispatch(Hook.Restore, Hook) end)
+    end
+    pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipCleared", function() KT.dispatch(Hook.OnCleared, Hook) end)
+    GameTooltip:HookScript("OnHide", function() KT.dispatch(Hook.Reveal, Hook) end)
+    -- the game may show its tooltip again after its redraw; it stays gone
+    GameTooltip:HookScript("OnShow", function(tip)
+        if Hook.gone then pcall(tip.Hide, tip) end
+    end)
 end
 
 KT:Listen("SETUP", function() Hook:Install() end)

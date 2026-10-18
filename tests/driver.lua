@@ -131,6 +131,57 @@ Card:OnUpdate(0.1); Card:OnUpdate(0.1)
 check(not cardShown(), "card gone")
 TIP_TOKEN, UNITS.target, UNITS.player.target = nil, nil, nil
 
+section("leaving: the game redraws its tooltip once more, and shows it again")
+hover("wolf")
+UNITS.mouseover = nil
+GameTooltip:Refresh()
+check(Card.fading, "the redraw lets the card go")
+check(not GameTooltip:IsShown(), "the game's tooltip goes right away")
+GameTooltip:Show()
+check(not GameTooltip:IsShown(), "and stays gone when the game shows it again")
+Card:OnUpdate(0.1); Card:OnUpdate(0.15)
+check(not cardShown(), "card faded out")
+hover("boar")
+check(cardShown() and GameTooltip:IsShown(), "the next creature gets its card")
+leave()
+
+section("leaving your target: the redraw names it \"target\" and must not bring the card back")
+UNITS.player.target = "wolf"
+UNITS.target = UNITS.wolf
+TIP_TOKEN = "target"
+hover("wolf")
+UNITS.mouseover = nil
+GameTooltip:Refresh()
+check(Card.fading and not GameTooltip:IsShown(), "let go")
+GameTooltip:Show()
+GameTooltip:Refresh()
+Card:OnUpdate(0.1)
+check(Card.fading and not GameTooltip:IsShown(), "a second redraw doesn't bring either back")
+Card:OnUpdate(0.15)
+check(not cardShown(), "card gone")
+TIP_TOKEN, UNITS.target, UNITS.player.target = nil, nil, nil
+
+section("a button's tooltip right after an enemy")
+hover("wolf")
+UNITS.mouseover = nil
+GameTooltip:SetOwner({})
+GameTooltip:AddLine("Krakenchat")
+GameTooltip:Show()
+check(GameTooltip:IsShown() and GameTooltip:GetAlpha() == 1, "visible, as the game made it")
+check(not cardShown(), "no card")
+GameTooltip:Hide()
+
+section("emptied and filled by hand without a new owner: the game's again on the next frame")
+hover("wolf")
+GameTooltip:ClearLines()
+local s = GameTooltip._scripts.OnTooltipCleared
+s(GameTooltip)
+GameTooltip:AddLine("something else")
+check(GameTooltip:GetAlpha() == 0, "still hidden in this frame")
+NextFrame()
+check(GameTooltip:GetAlpha() == 1 and not cardShown(), "visible from the next frame on")
+leave()
+
 section("health updates while hovering")
 hover("wolf")
 UNITS.wolf.hp = 900
