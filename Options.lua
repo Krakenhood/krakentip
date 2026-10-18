@@ -13,6 +13,28 @@ KT.Options = Options
 local WIDTH, HEIGHT = 360, 540 -- the height follows the content
 local PAD = 18
 
+-- A label and "- value +" (or "< value >"): returns the font string for the value.
+local function stepper(f, label, x, y, valueWidth, onStep, arrows)
+    local l = Wg.Text(f, 12, T.text)
+    l:SetPoint("TOPLEFT", x, -(y + 4))
+    l:SetText(label)
+    local minus = Wg.TextButton(f, arrows and "<" or "-", 14)
+    minus:SetSize(22, 22)
+    minus:SetPoint("TOPLEFT", x + 52, -y)
+    local value = Wg.Text(f, 12, T.gold, "CENTER")
+    value:SetPoint("LEFT", minus, "RIGHT", 2, 0)
+    value:SetWidth(valueWidth)
+    local plus = Wg.TextButton(f, arrows and ">" or "+", 14)
+    plus:SetSize(22, 22)
+    plus:SetPoint("LEFT", value, "RIGHT", 2, 0)
+    minus:SetScript("OnClick", function() onStep(-1) end)
+    plus:SetScript("OnClick", function() onStep(1) end)
+    value.minus, value.plus = minus, plus
+    return value
+end
+
+local function pct(v) return ("%d%%"):format(math.floor(v * 100 + 0.5)) end
+
 local function heading(f, text, y)
     local h = Wg.Text(f, 13, T.gold)
     h:SetPoint("TOPLEFT", PAD, -y)
@@ -89,7 +111,7 @@ function Options:Create()
     -- the look
     heading(f, "Style", y)
     y = y + 26
-    -- ten looks: step through them here, or see them all in Compare
+    -- the looks: step through them here, or see them all in Compare
     local prev = Wg.TextButton(f, "<", 14)
     prev:SetSize(24, 22)
     prev:SetPoint("TOPLEFT", PAD - 4, -y)
@@ -114,7 +136,20 @@ function Options:Create()
     local styleHint = Wg.Text(f, 11, T.dim)
     styleHint:SetPoint("TOPLEFT", PAD + 2, -(y + 26))
     self.styleName, self.styleHint, self.compareButton, self.stylePrev, self.styleNext = styleName, styleHint, compare, prev, nextB
-    y = y + 50
+    y = y + 46
+
+    -- this look's width and height
+    self.widthText = stepper(f, "Width", PAD + 2, y, 44, function(d) KT:SetDim("w", KT:Dim("w") + d / 10) end)
+    self.heightText = stepper(f, "Height", PAD + 170, y, 44, function(d) KT:SetDim("h", KT:Dim("h") + d / 10) end)
+    y = y + 30
+
+    -- the health bar
+    heading(f, "Health bar", y)
+    y = y + 26
+    self.textureText = stepper(f, "Texture", PAD + 2, y, 110, function(d) KT:SetBar("texture", nil, d) end, true)
+    y = y + 26
+    self.colorText = stepper(f, "Colour", PAD + 2, y, 110, function(d) KT:SetBar("color", nil, d) end, true)
+    y = y + 32
 
     -- what
     heading(f, "On the card", y)
@@ -129,9 +164,9 @@ function Options:Create()
         return cb
     end
     check("Who it's attacking", "target", "\"Targeting: You\" in red when it's coming for you.")
-    check("How hard it is", "difficulty", "For what you can fight, from its level against yours: Trivial, Easy, Even, Hard, Very hard, Deadly. The Regular card has a line for it; the others colour the level.")
+    check("How hard it is, in words", "difficulty", "Trivial, Easy, Even, Hard, Very hard or Deadly, on the Regular and Classic cards. Every look colours the level that way anyway.")
     check("Quest progress", "quests", "The quest lines the game's tooltip shows for this creature.")
-    self.friends = check("Kills with your Krakenfriends partner", "friends", "How often you two have killed this creature. Needs Krakenfriends.")
+    self.friends = check("Kills with your Krakenfriends partner", "friends", "How often you and your Krakenfriends partner have killed this creature. Only shows when Krakenfriends is loaded and you two have killed it.")
     y = y + 6
 
     -- the card
@@ -139,26 +174,11 @@ function Options:Create()
     y = y + 24
     check("Use the Kraken card", "enabled", "Off: creatures and players get the game's own tooltip again (/kt blizzard).", KT.db.settings)
 
-    local sizeLabel = Wg.Text(f, 12, T.text)
-    sizeLabel:SetPoint("TOPLEFT", PAD + 2, -(y + 4))
-    sizeLabel:SetText("Size")
-    local minus = Wg.TextButton(f, "-", 14)
-    minus:SetSize(24, 22)
-    minus:SetPoint("TOPLEFT", PAD + 60, -y)
-    local value = Wg.Text(f, 12, T.gold, "CENTER")
-    value:SetPoint("LEFT", minus, "RIGHT", 4, 0)
-    value:SetWidth(44)
-    local plus = Wg.TextButton(f, "+", 14)
-    plus:SetSize(24, 22)
-    plus:SetPoint("LEFT", value, "RIGHT", 4, 0)
-    local function step(d)
+    self.scaleText = stepper(f, "Scale", PAD + 2, y, 44, function(d)
         local st = KT.db.settings
-        st.scale = math.max(0.6, math.min(1.6, math.floor((st.scale + d) * 10 + 0.5) / 10))
+        st.scale = math.max(0.6, math.min(1.6, math.floor((st.scale + d / 10) * 10 + 0.5) / 10))
         KT:Fire("SETTINGS")
-    end
-    minus:SetScript("OnClick", function() step(-0.1) end)
-    plus:SetScript("OnClick", function() step(0.1) end)
-    self.scaleText = value
+    end)
     y = y + 34
 
     -- try it
@@ -191,7 +211,11 @@ function Options:Refresh()
     end
     local hasFriends = type(Krakenfriends) == "table"
     self.friends.label:SetTextColor(Wg.rgb(hasFriends and T.text or T.faint))
-    self.scaleText:SetText(("%d%%"):format(math.floor(s.scale * 100 + 0.5)))
+    self.scaleText:SetText(pct(s.scale))
+    self.widthText:SetText(pct(KT:Dim("w")))
+    self.heightText:SetText(pct(KT:Dim("h")))
+    for _, t in ipairs(KT.BarTextures) do if t.key == s.bar.texture then self.textureText:SetText(t.label) end end
+    for _, c in ipairs(KT.BarColors) do if c.key == s.bar.color then self.colorText:SetText(c.label) end end
     self.sampleButton:SetText(KT.Card:IsSampleShown() and "Hide the sample card" or "Show a sample card")
 end
 

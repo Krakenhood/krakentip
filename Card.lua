@@ -66,6 +66,7 @@ end
 function Card:Gather(unit, extra)
     extra = extra or {}
     local info = { unit = unit, quests = extra.quests, subtitle = extra.subtitle }
+    info.guid = call(UnitGUID, unit)
     info.name = raw(UnitName, unit)
     info.level = call(UnitLevel, unit)
     if call(UnitIsBossMob or function() end, unit) then info.level = -1 end
@@ -119,7 +120,7 @@ function Card:FrameFor(style)
     f:SetClampedToScreen(true)
     f:EnableMouse(false)
     f:Hide()
-    Layouts[style].Create(f)
+    Layouts.Build(f, style)
     f:SetScript("OnUpdate", function(_, elapsed) Card:OnUpdate(elapsed) end)
     self.frames[style] = f
     return f
@@ -131,7 +132,7 @@ function Card:Fill(info)
     if self.frame and self.frame ~= f then self.frame:Hide() end
     self.frame = f
     f:SetScale(KT.db.settings.scale or 1)
-    local w, h = Layouts[style].Fill(f, info, KT.db.settings)
+    local w, h = Layouts.Fill(f, style, info, KT.db.settings)
     f:SetSize(w, h)
     self.info = info
 end
@@ -180,9 +181,15 @@ local function tooltipSpot(f)
     return true
 end
 
+-- A soft target (action targeting) isn't under the mouse, so its card goes
+-- where the game puts tooltips.
+function Card:AtMouse()
+    return KT.db.settings.position == "mouse" and not (self.info and KT.Hook.SOFT[self.info.unit])
+end
+
 function Card:Place()
     local f = self.frame
-    if KT.db.settings.position == "mouse" then return self:FollowMouse() end
+    if self:AtMouse() then return self:FollowMouse() end
     f:ClearAllPoints()
     if self.sample or not tooltipSpot(f) then defaultSpot(f) end
 end
@@ -248,8 +255,14 @@ end
 
 local function stillHovered(info)
     if info.unit == "mouseover" then return call(UnitExists, "mouseover") end
+    -- a soft target: as long as you still face that same unit
+    if KT.Hook.SOFT[info.unit] then
+        if not call(UnitExists, info.unit) then return false end
+        local guid = call(UnitGUID, info.unit)
+        return not (guid and info.guid) or guid == info.guid
+    end
     local owner = info.owner
-    if owner and owner.IsMouseOver then
+    if owner and owner ~= UIParent and owner.IsMouseOver then
         local ok, over = pcall(owner.IsMouseOver, owner)
         return ok and clean(over) ~= false
     end
@@ -259,7 +272,7 @@ end
 local since = 0
 function Card:OnUpdate(elapsed)
     local f = self.frame
-    if KT.db.settings.position == "mouse" then self:FollowMouse() end
+    if self:AtMouse() then self:FollowMouse() end
     if self.sample then return end
     local info = self.info
     if not info then return f:Hide() end

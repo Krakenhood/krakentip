@@ -4,28 +4,36 @@ Creatures and players get a card in the game's own style (gold border, dark ston
 
 ![The card next to the mouse](assets/screenshots/1-card-at-mouse.png)
 
-## Ten styles
+## Eight styles
 
 | Style | What it looks like |
 | --- | --- |
 | **Regular** | The full card: level in a gold ring, a big bar with the numbers, a line for each thing, the quest lines. |
 | **Mid** | Name, type and target at a glance, a thin bar, the quest objectives. |
-| **Minimal** | One line: level, name, badge, a small bar, target, quest count. |
-| **Classic** | The game's own tooltip, line by line ("Level 24 Wolf (Elite)"), in the gold frame. |
-| **Wide** | A low banner: the ring and name left, the bar, difficulty and target right. |
-| **Plate** | Small and centred, like a nameplate: name, level with a + for elites, bar, target. |
-| **Portrait** | Like the game's target frame: the unit's face in a ring, its level, a name band and the bar. |
-| **Column** | Narrow and tall, everything centred, each detail as a small label over its value. |
-| **Bar** | The health bar is the card, with the name written on it; badge, quest count and target below. |
-| **Icons** | Name and bar, then the details as small icons with a value (target, difficulty, quest, kills, guild). |
+| **Minimal** | Two short lines: level, name and badge; then a small bar, the type, the quest count and the target. |
+| **Classic** | The game's own tooltip, line by line ("Level 24 Beast · Wolf (Elite)"), in the gold frame. |
+| **Plate** | Small and centred, like a nameplate: name, level with a + for elites, bar, then type, quest count and target. |
+| **Portrait** | Like the game's target frame: the unit's face in a ring, its level, a name band with the quest count, the bar. |
+| **Bar** | The health bar is the card, with the name written on it; type, rank, quest count and target below. |
+| **Icons** | Name and bar, then the details as small icons with a value (target, type, quest, kills, guild). |
 
-**Compare them**: `/kt compare` (or **Compare all** in the options, or shift-click the minimap button) opens a window with all ten side by side. It shows a sample wolf until you hover a unit; then every style shows that unit, and keeps it after the mouse leaves. Click a style to use it.
+Every style shows the creature's type and its quest progress.
+
+**Compare them**: `/kt compare` (or **Compare all** in the options, or shift-click the minimap button) opens a window with all eight side by side. It shows a sample wolf until you hover a unit; then every style shows that unit, and keeps it after the mouse leaves. Click a style to use it.
 
 To switch: step through them in the options (< and >), `/kt style plate` or just `/kt plate`, or right-click the minimap button for the next one. `/kt styles` lists them.
 
-![All ten styles with the sample wolf](assets/screenshots/2-compare-creature.png)
+![All eight styles with the sample wolf](assets/screenshots/2-compare-creature.png)
 
-![All ten styles with a friendly player](assets/screenshots/3-compare-player.png)
+![All eight styles with a friendly player](assets/screenshots/3-compare-player.png)
+
+## Width, height and the bar
+
+Each style has its own **width** and **height** (60% to 160%), in the options or with `/kt width 0.8` and `/kt height 1.2` for the style in use. Height stretches the bar and the space between the lines; the text keeps its size. **Scale** makes the whole card bigger or smaller.
+
+The **health bar** has a texture (Smooth, Flat, Raid, Skill bar) and a colour: foe or friend (red for what you can attack, green for the rest), by health (green, to yellow, to red as it drops) or gold.
+
+![Sizes and bars](assets/screenshots/4-sizes-and-bars.png)
 
 ## The card
 
@@ -34,10 +42,10 @@ To switch: step through them in the options (< and >), `/kt style plate` or just
 - **What it is**: "Beast · Wolf", an NPC's title ("Innkeeper · Humanoid"), a player's race and class. A badge for **Elite**, **Rare**, **Rare Elite** and **Boss**.
 - **Health**: red for what you can attack, green for everyone else.
 - **Targeting**: who it's attacking. "You" in red when it's coming for you, players in their class colour.
-- **Difficulty**: Trivial, Easy, Even, Hard, Very hard or Deadly, with the level difference. Only for what you can fight.
+- **Difficulty in words** (off by default, since the level's colour says it): Trivial, Easy, Even, Hard, Very hard or Deadly, on the Regular and Classic cards.
 - **Guild** for players.
 - **Quest progress**: the quest lines the game's tooltip shows for this creature.
-- **Killed with your friend**: with [Krakenfriends](https://github.com/Krakenhood/krakenfriends) loaded, how often you two have killed this creature.
+- **Killed with your friend**: with [Krakenfriends](https://github.com/Krakenhood/krakenfriends) loaded, how often you two have killed this creature. It only shows when Krakenfriends is loaded and you've killed it together; the tick in the options turns it off altogether.
 
 The card keeps itself up to date while you hover: health, who it's attacking, dead or tagged.
 
@@ -48,17 +56,19 @@ Two choices, in the options (`/kt`) or by command:
 - **Next to the mouse** (`/kt mouse`, the default). The card follows the cursor, so your eyes stay on the fight. Near the right edge of the screen it flips to the left of the cursor.
 - **Where the game puts tooltips** (`/kt tooltip`). The card sits where the game's tooltip would be. Move that spot in Edit Mode, like any tooltip.
 
-![The card where the game puts tooltips](assets/screenshots/4-card-tooltip-spot.png)
+**Action targeting**: when you face a creature and the game picks it as your soft target, it shows that creature's tooltip without the mouse. Krakentip shows the card for it at the tooltip spot, and it goes when you face something else.
 
-![A boss and a neutral creature](assets/screenshots/5-boss-and-neutral.png)
+![The card where the game puts tooltips](assets/screenshots/5-card-tooltip-spot.png)
+
+![A boss and a neutral creature](assets/screenshots/6-boss-and-neutral.png)
 
 ## Options
 
-`/kt` opens the options window: where the card shows, its style, its lines and its size. It's also under Options > AddOns > Krakentip, and the minimap button opens it (click; right-click switches the style, shift-click opens Compare).
+`/kt` opens the options window: where the card shows, its style, that style's width and height, the health bar, the lines and the scale. It's also under Options > AddOns > Krakentip, and the minimap button opens it (click; right-click switches the style, shift-click opens Compare).
 
 **Show a sample card** puts a pretend Timberling Ravager on screen, so you can try the position, the style, the size and the lines without a creature around. It stays until you click again or close the options.
 
-![The options with the sample card](assets/screenshots/6-options.png)
+![The options with the sample card](assets/screenshots/7-options.png)
 
 ## How it works
 
@@ -74,8 +84,12 @@ The game builds unit tooltips (creatures and players) on their own path, apart f
 | `/kt mouse` | Show the card next to the mouse |
 | `/kt tooltip` | Show the card where the game puts tooltips |
 | `/kt style` | Switch to the next style, or `/kt style plate` (or just `/kt plate`) |
-| `/kt styles` | List the ten styles |
-| `/kt compare` | All ten styles side by side; hover a unit to fill them |
+| `/kt styles` | List the eight styles |
+| `/kt compare` | All eight styles side by side; hover a unit to fill them |
+| `/kt width 0.8` | This style's width (0.6 to 1.6) |
+| `/kt height 1.2` | This style's height (0.6 to 1.6) |
+| `/kt bar flat` | The bar's texture: smooth, flat, raid, skill (no name: the next one) |
+| `/kt barcolor health` | The bar's colour: reaction, health, gold |
 | `/kt scale 1.2` | Make the card bigger or smaller (0.6 to 1.6) |
 | `/kt sample` | Show or hide the sample card |
 | `/kt blizzard` | Switch between the card and the game's own unit tooltips |

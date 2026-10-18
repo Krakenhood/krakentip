@@ -4,19 +4,21 @@ local Wg = KT.Widgets
 local raw, clean = KT.raw, KT.clean
 
 --------------------------------------------------------------------------------
--- The three looks of the card. Each builds its parts on a frame once
--- (Create) and fills them for a unit (Fill), returning the size it needs.
+-- The looks of the card. Each builds its parts on a frame once (Create) and
+-- places and fills them for a unit (Fill), returning the size it needs. Where
+-- things go is worked out at fill time, so every look can be made wider,
+-- narrower, taller or lower (settings.dims) and the bar can change its
+-- texture and colour (settings.bar).
 --
---   regular  the full card: level ring, name, type, a big health bar, a line
---            each for target, difficulty, guild and kills together, quests
---   mid      the same at a glance: two lines of text, a thin bar, quests
---   minimal  one line: level, name, badge, a small bar, target, quest count
+-- Every part is placed from the card's top left corner (at()), and listed in
+-- f.parts: that's all the screenshot tool needs to draw a card as it is.
 --------------------------------------------------------------------------------
 
 local Layouts = {}
 KT.Layouts = Layouts
 
 local DARK = { 0.10, 0.07, 0.03 } -- letters on the gold badge
+local floor, max, min = math.floor, math.max, math.min
 
 -- a font string's width, or a guess when the game won't say (secret text)
 local function width(fs, guess)
@@ -28,8 +30,186 @@ local function setText(fs, text)
     if not pcall(fs.SetText, fs, text) then fs:SetText("") end
 end
 
+local function hex(c)
+    return ("%02x%02x%02x"):format(floor(c[1] * 255 + 0.5), floor(c[2] * 255 + 0.5), floor(c[3] * 255 + 0.5))
+end
+local function paint(text, c) return "|cff" .. hex(c) .. text .. "|r" end
+
+-- this look's width and height factors (1 = as designed)
+local function dims(s, key)
+    local d = s.dims and s.dims[key]
+    return (d and d.w) or 1, (d and d.h) or 1
+end
+
+-- a vertical size times the height factor, never under `least`
+local function V(n, hk, least) return max(least or 0, floor(n * hk + 0.5)) end
+
 --------------------------------------------------------------------------------
--- Shared pieces
+-- Parts
+--------------------------------------------------------------------------------
+
+local function part(f, region, kind)
+    region._kind = kind
+    f.parts[#f.parts + 1] = region
+    return region
+end
+
+-- `point` is the part's corner that sits at (x, y) from the card's top left:
+-- TOPLEFT for text that reads from there, TOPRIGHT for text that ends there,
+-- TOP for text centred on x.
+local function at(f, region, point, x, y)
+    region:ClearAllPoints()
+    region:SetPoint(point, f, "TOPLEFT", x, -y)
+    region._at = { point, x, y }
+end
+
+local function text(f, size, color, opts)
+    opts = opts or {}
+    local parent = opts.top and f.top or f
+    local fs = opts.title and Wg.Title(parent, size) or Wg.Text(parent, size, color or T.text, "LEFT", opts.outline)
+    if color then fs:SetTextColor(Wg.rgb(color)) end
+    fs._size, fs._title, fs._outline = size, opts.title, opts.outline
+    return part(f, fs, "text")
+end
+
+local function solid(f, color, alpha)
+    local t = Wg.Solid(f, "BACKGROUND", color, alpha, 1)
+    t._rgba = { color[1], color[2], color[3], alpha or color[4] or 1 }
+    return part(f, t, "solid")
+end
+
+local function bar(f)
+    local b = CreateFrame("StatusBar", nil, f)
+    b:SetMinMaxValues(0, 1)
+    local bg = Wg.Solid(b, "BACKGROUND", { 0, 0, 0 }, 0.65)
+    bg:SetAllPoints()
+    local edge = Wg.Solid(b, "BACKGROUND", T.gold, 0.5, -1)
+    edge:SetPoint("TOPLEFT", -1, 1)
+    edge:SetPoint("BOTTOMRIGHT", 1, -1)
+    part(f, b, "bar")
+    b.text = text(f, 11, T.text, { outline = "OUTLINE", top = true })
+    return b
+end
+
+local function placeBar(f, b, x, y, w, h)
+    at(f, b, "TOPLEFT", x, y)
+    b:SetSize(w, h)
+    b._size = { w, h }
+end
+
+-- the text on the bar, centred, as big as the bar allows (none on a thin bar)
+local function barText(f, b, x, y, w, h)
+    if h < 8 then return b.text:Hide() end
+    local size = min(11, max(8, h - 3))
+    b.text:SetFont(Wg.FONT, size, "OUTLINE")
+    b.text._size = size
+    at(f, b.text, "TOP", x + w / 2, y + floor((h - size) / 2))
+    b.text:Show()
+end
+
+-- the badge for elites, rares and bosses: dark letters on gold
+local function tag(f, size)
+    local t = CreateFrame("Frame", nil, f)
+    t:SetSize(40, size + 3)
+    t.bg = Wg.Solid(t, "BACKGROUND", T.gold, 0.95)
+    t.bg:SetAllPoints()
+    t.text = Wg.Text(t, size, DARK, "CENTER")
+    t.text:SetShadowOffset(0, 0)
+    t.text:SetPoint("CENTER", 0, 0)
+    t._size = size
+    function t:Set(label)
+        if not label then return self:Hide() end
+        self.text:SetText(label)
+        self:SetWidth(width(self.text, 30) + 8)
+        self:Show()
+    end
+    return part(f, t, "tag")
+end
+
+local function skull(f, size)
+    local s = f:CreateTexture(nil, "ARTWORK")
+    s:SetTexture(KT.Files.skull)
+    s:SetSize(size, size)
+    s._size = size
+    return part(f, s, "skull")
+end
+
+-- the level in a gold ring (or the skull); sets f.level and f.skull
+local function ring(f, size)
+    local r = CreateFrame("Frame", nil, f)
+    r:SetSize(size, size)
+    local disc = r:CreateTexture(nil, "BACKGROUND")
+    disc:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    disc:SetVertexColor(0.15, 0.10, 0.07, 1)
+    disc:SetPoint("TOPLEFT", 3, -3)
+    disc:SetPoint("BOTTOMRIGHT", -3, 3)
+    local edge = r:CreateTexture(nil, "OVERLAY")
+    edge:SetTexture(KT.Files.ring)
+    edge:SetSize(size * 1.8, size * 1.8)
+    edge:SetPoint("TOPLEFT", -size / 15, size / 15)
+    f.level = Wg.Text(r, size >= 26 and 12 or 10, T.gold, "CENTER", "OUTLINE")
+    f.level:SetPoint("CENTER", 0, 0)
+    f.skull = r:CreateTexture(nil, "ARTWORK")
+    f.skull:SetTexture(KT.Files.skull)
+    f.skull:SetSize(size * 0.55, size * 0.55)
+    f.skull:SetPoint("CENTER")
+    r._size = size
+    r.level, r.skull = f.level, f.skull
+    return part(f, r, "ring")
+end
+
+-- The level in its difficulty colour, or the skull. True when it's the skull.
+local function setLevel(f, info)
+    if info.level and info.level > 0 then
+        f.level:SetText(info.level)
+        f.level:SetTextColor(Wg.rgb(info.difficultyColor or T.gold))
+        f.level:Show()
+        f.skull:Hide()
+        return false
+    end
+    f.level:Hide()
+    f.skull:Show()
+    return true
+end
+
+-- a small icon with a value next to it, for the Icons look
+local function chip(f)
+    local c = CreateFrame("Frame", nil, f)
+    c:SetSize(30, 14)
+    c.icon = c:CreateTexture(nil, "ARTWORK")
+    c.icon:SetSize(13, 13)
+    c.icon:SetPoint("LEFT")
+    c.text = Wg.Text(c, 10, T.text)
+    c.text:SetPoint("LEFT", c.icon, "RIGHT", 2, 0)
+    function c:Set(file, value, color)
+        if value == nil then return self:Hide() end
+        self.icon:SetTexture(file)
+        self._icon = file
+        setText(self.text, value)
+        self.text:SetTextColor(Wg.rgb(color or T.text))
+        self:SetWidth(15 + width(self.text, 24))
+        self:Show()
+    end
+    return part(f, c, "chip")
+end
+
+-- A pool of parts made on demand: pool:Get(i), pool:HideFrom(i).
+local function pool(make)
+    local p = {}
+    function p:Get(i)
+        local it = self[i] or make()
+        self[i] = it
+        it:Show()
+        return it
+    end
+    function p:HideFrom(i)
+        for n = i, #self do self[n]:Hide() end
+    end
+    return p
+end
+
+--------------------------------------------------------------------------------
+-- What the looks say
 --------------------------------------------------------------------------------
 
 function Layouts.NameColor(info)
@@ -51,7 +231,13 @@ function Layouts.Kind(info)
     return table.concat(parts, " · ")
 end
 
--- The lines under the bar, as { label, value, colour }.
+-- "Elite", "Rare elite", "Boss"
+local function rank(info)
+    local cls = KT.Classification[info.cls]
+    return cls and (cls:sub(1, 1) .. cls:sub(2):lower()) or nil
+end
+
+-- The lines of the Regular card, as { label, value, colour }.
 function Layouts.Rows(info, lines)
     local rows = {}
     if lines.target and info.target then rows[#rows + 1] = { "Targeting", info.target, info.targetColor } end
@@ -68,795 +254,646 @@ function Layouts.Rows(info, lines)
 end
 
 -- "3/8" from the first quest objective that counts something
-local function questCount(info)
+function Layouts.QuestCount(info, lines)
+    if not lines.quests then return nil end
     for _, q in ipairs(info.quests or {}) do
-        local text = clean(q[1])
-        local n = type(text) == "string" and not q[2] and text:match("(%d+%s*/%s*%d+)")
+        local t = clean(q[1])
+        local n = type(t) == "string" and not q[2] and t:match("(%d+%s*/%s*%d+)")
         if n then return (n:gsub("%s", "")) end
     end
 end
 
-local function makeBar(f, h, size)
-    local bar = CreateFrame("StatusBar", nil, f)
-    bar:SetHeight(h)
-    bar:SetStatusBarTexture(Wg.FirstFile(KT.Files.bar))
-    bar:SetMinMaxValues(0, 1)
-    local bg = Wg.Solid(bar, "BACKGROUND", { 0, 0, 0 }, 0.65)
-    bg:SetAllPoints()
-    local edge = Wg.Solid(bar, "BACKGROUND", T.gold, 0.5, -1)
-    edge:SetPoint("TOPLEFT", -1, 1)
-    edge:SetPoint("BOTTOMRIGHT", 1, -1)
-    bar.text = Wg.Text(bar, size, T.text, "CENTER", "OUTLINE")
-    bar.text:SetPoint("CENTER", 0, 0)
-    return bar
-end
-
--- the badge for elites, rares and bosses: dark letters on gold
-local function makeTag(f, size)
-    local tag = CreateFrame("Frame", nil, f)
-    tag:SetSize(40, size + 3)
-    tag.bg = Wg.Solid(tag, "BACKGROUND", T.gold, 0.95)
-    tag.bg:SetAllPoints()
-    tag.text = Wg.Text(tag, size, DARK, "CENTER")
-    tag.text:SetShadowOffset(0, 0)
-    tag.text:SetPoint("CENTER", 0, 0)
-    function tag:Set(text)
-        if not text then return self:Hide() end
-        self.text:SetText(text)
-        self:SetWidth(width(self.text, 30) + 8)
-        self:Show()
+-- the quest objectives (titles left out), for the looks with little room
+local function objectives(info, lines)
+    local out = {}
+    if not lines.quests then return out end
+    for _, q in ipairs(info.quests or {}) do
+        if not q[2] then out[#out + 1] = q[1] end
     end
-    return tag
+    return out
 end
 
-local function makeSkull(f, size)
-    local skull = f:CreateTexture(nil, "ARTWORK")
-    skull:SetTexture(KT.Files.skull)
-    skull:SetSize(size, size)
-    return skull
+local function difficultyText(info, lines)
+    if not (lines.difficulty and info.difficulty) then return nil end
+    if info.diff and info.diff ~= 0 then return ("%s (%+d)"):format(info.difficulty, info.diff) end
+    return info.difficulty
 end
 
--- The level as text in its difficulty colour, or the skull.
-local function setLevel(fs, skull, info)
-    if info.level and info.level > 0 then
-        fs:SetText(info.level)
-        fs:SetTextColor(Wg.rgb(info.difficultyColor or T.gold))
-        fs:Show()
-        skull:Hide()
-        return false
-    end
-    fs:Hide()
-    skull:Show()
-    return true
+local function targetText(info, lines)
+    if lines.target and info.target then return "» " .. tostring(info.target) end
 end
 
+--------------------------------------------------------------------------------
 -- Health on the bar: the numbers and the percentage, or (short) just the
 -- percentage. Status bars take secret values, so the bar fills even when the
 -- game hides the numbers from us.
-function Layouts.SetHealth(bar, info, short)
-    local unit = info.unit
-    local hp, max
-    if unit then
-        hp, max = raw(UnitHealth, unit), raw(UnitHealthMax, unit)
-    else
-        hp, max = info.hp, info.hpMax
-    end
-    pcall(bar.SetMinMaxValues, bar, 0, max or 1)
-    pcall(bar.SetValue, bar, hp or 0)
-    bar:SetStatusBarColor(Wg.rgb(info.tapped and T.tapped or info.canAttack and T.health or T.friendly))
+--------------------------------------------------------------------------------
 
-    if info.dead then
-        bar.text:SetText("Dead")
-        return
+KT.BarTextures = {
+    { key = "smooth", label = "Smooth", files = { "Interface\\TargetingFrame\\UI-StatusBar" } },
+    { key = "flat", label = "Flat", files = { "Interface\\Buttons\\WHITE8X8" } },
+    { key = "raid", label = "Raid", files = { "Interface\\RaidFrame\\Raid-Bar-Hp-Fill", "Interface\\TargetingFrame\\UI-StatusBar" } },
+    { key = "skill", label = "Skill bar", files = { "Interface\\PaperDollInfoFrame\\UI-Character-Skills-Bar", "Interface\\TargetingFrame\\UI-StatusBar" } },
+}
+KT.BarColors = {
+    { key = "reaction", label = "Foe or friend" },  -- red for what you can attack, green for the rest
+    { key = "health", label = "By health" },        -- green, to yellow, to red as it drops
+    { key = "gold", label = "Gold" },
+}
+local TEXTURE = {}
+for _, t in ipairs(KT.BarTextures) do TEXTURE[t.key] = t end
+
+local function healthColor(p)
+    -- green at full, yellow at half, red when low
+    if p > 0.5 then return { 2 * (1 - p) * 0.9 + 0.1, 0.75, 0.15 } end
+    return { 0.9, 1.5 * p, 0.12 }
+end
+
+function Layouts.SetHealth(b, info, s, short)
+    local unit = info.unit
+    local hp, hpMax
+    if unit then
+        hp, hpMax = raw(UnitHealth, unit), raw(UnitHealthMax, unit)
+    else
+        hp, hpMax = info.hp, info.hpMax
     end
-    local h, m = clean(hp), clean(max)
+    pcall(b.SetMinMaxValues, b, 0, hpMax or 1)
+    pcall(b.SetValue, b, hp or 0)
+
+    local look = s.bar or {}
+    local tex = TEXTURE[look.texture] or TEXTURE.smooth
+    b:SetStatusBarTexture(Wg.FirstFile(tex.files))
+    b._texture = tex.key
+    local h, m = clean(hp), clean(hpMax)
+    local color = info.canAttack and T.health or T.friendly
+    if look.color == "gold" then
+        color = T.gold
+    elseif look.color == "health" and h and m and m > 0 then
+        color = healthColor(h / m)
+    end
+    if info.tapped then color = T.tapped end
+    b:SetStatusBarColor(Wg.rgb(color))
+    b._color = color
+
+    local t = b.text
+    if info.dead then return t:SetText("Dead") end
     if h and m and m > 0 then
-        local pct = math.floor(100 * h / m + 0.5)
+        local pct = floor(100 * h / m + 0.5)
         -- Classic hands out creature health as a percentage only (max 100)
         if short or m == 100 then
-            bar.text:SetText(pct .. "%")
+            t:SetText(pct .. "%")
         else
-            bar.text:SetText(("%s / %s  %d%%"):format(BreakUpLargeNumbers(h), BreakUpLargeNumbers(m), pct))
+            t:SetText(("%s / %s  %d%%"):format(BreakUpLargeNumbers(h), BreakUpLargeNumbers(m), pct))
         end
         return
     end
     -- secret: let the game write the percentage it won't show us
     if unit and UnitHealthPercent then
         local p = raw(UnitHealthPercent, unit, true, CurveConstants and CurveConstants.ScaleTo100)
-        if p ~= nil and pcall(bar.text.SetFormattedText, bar.text, "%.0f%%", p) then return end
+        if p ~= nil and pcall(t.SetFormattedText, t, "%.0f%%", p) then return end
     end
-    bar.text:SetText("")
+    t:SetText("")
+end
+
+--------------------------------------------------------------------------------
+-- Making a look's frame
+--------------------------------------------------------------------------------
+
+function Layouts.Build(f, key)
+    f.parts = {}
+    f.look = Layouts[key].frame
+    if f.look == "dialog" then Wg.DialogFrame(f) else Wg.ThinFrame(f, 0) end
+    -- texts that sit on the bar go on a layer above it
+    f.top = CreateFrame("Frame", nil, f)
+    f.top:SetAllPoints()
+    f.top:SetFrameLevel((f:GetFrameLevel() or 1) + 5)
+    Layouts[key].Create(f)
+end
+
+function Layouts.Fill(f, key, info, s)
+    local L = Layouts[key]
+    local wk, hk = dims(s, key)
+    return L.Fill(f, info, s, wk, hk)
 end
 
 --------------------------------------------------------------------------------
 -- Regular: the full card in the gold dialog frame
 --------------------------------------------------------------------------------
 
-local R = { WIDTH = 236, PAD = 8, HEAD = 42, BAR_H = 16, ROW_H = 16 }
+local R = { frame = "dialog", WIDTH = 236 }
 Layouts.regular = R
 
-local function Row(parent)
-    local r = CreateFrame("Frame", nil, parent)
-    r:SetSize(R.WIDTH - R.PAD * 2, R.ROW_H)
-    r.label = Wg.Text(r, 11, T.dim)
-    r.label:SetPoint("LEFT")
-    r.value = Wg.Text(r, 11, T.text, "RIGHT")
-    r.value:SetPoint("RIGHT")
-    return r
-end
-
 function R.Create(f)
-    local PAD, HEAD = R.PAD, R.HEAD
-    Wg.DialogFrame(f)
-    local band = Wg.Solid(f, "BACKGROUND", T.band, nil, 1)
-    band:SetPoint("TOPLEFT", 2, -2)
-    band:SetPoint("TOPRIGHT", -2, -2)
-    band:SetHeight(HEAD)
-
-    -- the level in a gold ring, a skull for bosses and creatures far above you
-    local badge = CreateFrame("Frame", nil, f)
-    badge:SetSize(30, 30)
-    badge:SetPoint("TOPLEFT", PAD, -7)
-    local disc = badge:CreateTexture(nil, "BACKGROUND")
-    disc:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-    disc:SetVertexColor(0.15, 0.10, 0.07, 1)
-    disc:SetPoint("TOPLEFT", 3, -3)
-    disc:SetPoint("BOTTOMRIGHT", -3, 3)
-    local ring = badge:CreateTexture(nil, "OVERLAY")
-    ring:SetTexture(KT.Files.ring)
-    ring:SetSize(54, 54)
-    ring:SetPoint("TOPLEFT", -2, 2)
-    f.level = Wg.Text(badge, 12, T.gold, "CENTER", "OUTLINE")
-    f.level:SetPoint("CENTER", 0, 0)
-    f.skull = makeSkull(badge, 16)
-    f.skull:SetPoint("CENTER")
-    f.badge = badge
-
-    f.name = Wg.Title(f, 16)
-    f.name:SetPoint("TOPLEFT", badge, "TOPRIGHT", 7, 0)
-    f.name:SetPoint("RIGHT", f, "RIGHT", -PAD, 0)
-
-    f.sub = Wg.Text(f, 11, T.dim)
-    f.sub:SetPoint("TOPLEFT", f.name, "BOTTOMLEFT", 0, -2)
-
-    f.tag = makeTag(f, 9)
-
-    f.bar = makeBar(f, R.BAR_H, 11)
-    f.bar:SetPoint("TOPLEFT", PAD, -(HEAD + 6))
-    f.bar:SetPoint("TOPRIGHT", -PAD, -(HEAD + 6))
-
-    f.rows = {}
-    f.sep = Wg.Solid(f, "ARTWORK", T.line)
-    f.sep:SetHeight(1)
-    f.quests = {}
+    f.band = solid(f, T.band)
+    f.ring = ring(f, 30)
+    f.name = text(f, 16, nil, { title = true })
+    f.sub = text(f, 11, T.dim)
+    f.tag = tag(f, 9)
+    f.bar = bar(f)
+    f.rows = pool(function() return { label = text(f, 11, T.dim), value = text(f, 11),
+        Show = function(r) r.label:Show(); r.value:Show() end, Hide = function(r) r.label:Hide(); r.value:Hide() end,
+        IsShown = function(r) return r.label:IsShown() end } end)
+    f.sep = solid(f, T.line)
+    f.quests = pool(function() return text(f, 11) end)
 end
 
-function R.Fill(f, info, s)
-    local PAD = R.PAD
-    setLevel(f.level, f.skull, info)
+function R.Fill(f, info, s, wk, hk)
+    local PAD = 8
+    local W = max(170, min(420, floor(R.WIDTH * wk + 0.5)))
+    at(f, f.band, "TOPLEFT", 2, 2)
+    f.band:SetSize(W - 4, 42)
+    at(f, f.ring, "TOPLEFT", PAD, 7)
+    setLevel(f, info)
+    at(f, f.name, "TOPLEFT", 45, 7)
+    f.name:SetWidth(W - 45 - PAD)
     setText(f.name, info.name)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-
+    at(f, f.sub, "TOPLEFT", 45, 27)
     local kind = Layouts.Kind(info)
     f.sub:SetText(kind)
     f.tag:Set(KT.Classification[info.cls])
-    f.tag:ClearAllPoints()
-    if kind ~= "" then
-        f.tag:SetPoint("LEFT", f.sub, "RIGHT", 5, 0)
-    else
-        f.tag:SetPoint("TOPLEFT", f.name, "BOTTOMLEFT", 0, -3)
-    end
+    at(f, f.tag, "TOPLEFT", kind ~= "" and 45 + width(f.sub, 60) + 5 or 45, 27)
 
-    Layouts.SetHealth(f.bar, info)
+    local y, bh = 48, V(16, hk, 6)
+    placeBar(f, f.bar, PAD, y, W - PAD * 2, bh)
+    barText(f, f.bar, PAD, y, W - PAD * 2, bh)
+    Layouts.SetHealth(f.bar, info, s)
+    y = y + bh + V(5, hk, 3)
 
+    local rowH = V(16, hk, 13)
     local rows = Layouts.Rows(info, s.lines)
-    local y = R.HEAD + 6 + R.BAR_H + 5
     for i, r in ipairs(rows) do
-        local row = f.rows[i] or Row(f)
-        f.rows[i] = row
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", PAD, -y)
+        local row = f.rows:Get(i)
+        at(f, row.label, "TOPLEFT", PAD, y + 1)
         row.label:SetText(r[1])
+        at(f, row.value, "TOPRIGHT", W - PAD, y + 1)
         setText(row.value, r[2])
         row.value:SetTextColor(Wg.rgb(r[3] or T.text))
-        row:Show()
-        y = y + R.ROW_H
+        y = y + rowH
     end
-    for i = #rows + 1, #f.rows do f.rows[i]:Hide() end
+    f.rows:HideFrom(#rows + 1)
 
     -- quest progress, as the game words it
     local quests = s.lines.quests and info.quests or {}
     if #quests > 0 then
-        y = y + 4
-        f.sep:ClearAllPoints()
-        f.sep:SetPoint("TOPLEFT", PAD, -y)
-        f.sep:SetPoint("TOPRIGHT", -PAD, -y)
+        y = y + V(4, hk, 2)
+        at(f, f.sep, "TOPLEFT", PAD, y)
+        f.sep:SetSize(W - PAD * 2, 1)
         f.sep:Show()
-        y = y + 5
+        y = y + V(5, hk, 3)
     else
         f.sep:Hide()
     end
     for i, q in ipairs(quests) do
-        local fs = f.quests[i] or Wg.Text(f, 11, T.text)
-        f.quests[i] = fs
-        fs:ClearAllPoints()
-        fs:SetPoint("TOPLEFT", PAD, -y)
-        fs:SetPoint("RIGHT", f, "RIGHT", -PAD, 0)
+        local fs = f.quests:Get(i)
+        at(f, fs, "TOPLEFT", PAD, y)
+        fs:SetWidth(W - PAD * 2)
         setText(fs, q[1])
         fs:SetTextColor(Wg.rgb(q[2] and T.gold or T.text))
-        fs:Show()
-        y = y + 14
+        y = y + V(14, hk, 12)
     end
-    for i = #quests + 1, #f.quests do f.quests[i]:Hide() end
-
-    return R.WIDTH, y + PAD
+    f.quests:HideFrom(#quests + 1)
+    return W, y + PAD
 end
 
 --------------------------------------------------------------------------------
 -- Mid: two lines of text and a thin bar, in a thin gold frame
 --------------------------------------------------------------------------------
 
-local M = { WIDTH = 214, PAD = 7, BAR_H = 9 }
+local M = { frame = "thin", WIDTH = 214 }
 Layouts.mid = M
 
 function M.Create(f)
-    local PAD = M.PAD
-    Wg.ThinFrame(f, 0)
-    f.level = Wg.Text(f, 12, T.gold, "LEFT", "OUTLINE")
-    f.level:SetPoint("TOPLEFT", PAD, -7)
-    f.skull = makeSkull(f, 13)
-    f.skull:SetPoint("TOPLEFT", PAD, -6)
-
-    f.tag = makeTag(f, 8)
-    f.tag:SetPoint("TOPRIGHT", -PAD, -7)
-
-    f.name = Wg.Title(f, 14)
-
-    f.sub = Wg.Text(f, 10, T.dim)
-    f.sub:SetPoint("TOPLEFT", PAD, -25)
-    f.target = Wg.Text(f, 10, T.text, "RIGHT")
-    f.target:SetPoint("TOPRIGHT", -PAD, -25)
-
-    f.bar = makeBar(f, M.BAR_H, 9)
-    f.bar:SetPoint("TOPLEFT", PAD, -40)
-    f.bar:SetPoint("TOPRIGHT", -PAD, -40)
-    f.quests = {}
+    f.level = text(f, 12, T.gold, { outline = "OUTLINE" })
+    f.skull = skull(f, 13)
+    f.tag = tag(f, 8)
+    f.name = text(f, 14, nil, { title = true })
+    f.sub = text(f, 10, T.dim)
+    f.target = text(f, 10)
+    f.bar = bar(f)
+    f.quests = pool(function() return text(f, 10) end)
 end
 
-function M.Fill(f, info, s)
-    local PAD = M.PAD
-    local skull = setLevel(f.level, f.skull, info)
+function M.Fill(f, info, s, wk, hk)
+    local PAD = 7
+    local W = max(150, min(400, floor(M.WIDTH * wk + 0.5)))
+    local isSkull = setLevel(f, info)
+    at(f, f.level, "TOPLEFT", PAD, 7)
+    at(f, f.skull, "TOPLEFT", PAD, 6)
     f.tag:Set(KT.Classification[info.cls])
-    f.name:ClearAllPoints()
-    f.name:SetPoint("TOPLEFT", skull and 24 or PAD + width(f.level, 14) + 5, -5)
-    f.name:SetPoint("RIGHT", f, "RIGHT", -(PAD + (f.tag:IsShown() and f.tag:GetWidth() + 4 or 0)), 0)
+    at(f, f.tag, "TOPRIGHT", W - PAD, 7)
+    local nameX = isSkull and PAD + 17 or PAD + width(f.level, 14) + 5
+    at(f, f.name, "TOPLEFT", nameX, 5)
+    f.name:SetWidth(W - nameX - PAD - (f.tag:IsShown() and f.tag:GetWidth() + 4 or 0))
     setText(f.name, info.name)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
 
+    local y = 5 + V(20, hk, 17)
     local kind = Layouts.Kind(info)
     if info.guild then kind = (kind ~= "" and kind .. " · " or "") .. "<" .. info.guild .. ">" end
+    at(f, f.sub, "TOPLEFT", PAD, y)
     f.sub:SetText(kind)
-    if s.lines.target and info.target then
-        setText(f.target, info.target)
+    local target = targetText(info, s.lines)
+    if target then
+        at(f, f.target, "TOPRIGHT", W - PAD, y)
+        setText(f.target, target)
         f.target:SetTextColor(Wg.rgb(info.targetColor or T.text))
         f.target:Show()
     else
         f.target:Hide()
     end
 
-    Layouts.SetHealth(f.bar, info, true)
+    y = y + V(15, hk, 13)
+    local bh = V(9, hk, 4)
+    placeBar(f, f.bar, PAD, y, W - PAD * 2, bh)
+    barText(f, f.bar, PAD, y, W - PAD * 2, bh)
+    Layouts.SetHealth(f.bar, info, s, true)
+    y = y + bh + V(4, hk, 2)
 
-    -- quest objectives only, the titles are left out
-    local y = 40 + M.BAR_H + 4
-    local n = 0
-    for _, q in ipairs(s.lines.quests and info.quests or {}) do
-        if not q[2] then
-            n = n + 1
-            local fs = f.quests[n] or Wg.Text(f, 10, T.text)
-            f.quests[n] = fs
-            fs:ClearAllPoints()
-            fs:SetPoint("TOPLEFT", PAD, -y)
-            fs:SetPoint("RIGHT", f, "RIGHT", -PAD, 0)
-            setText(fs, q[1])
-            fs:Show()
-            y = y + 12
-        end
+    local list = objectives(info, s.lines)
+    for i, q in ipairs(list) do
+        local fs = f.quests:Get(i)
+        at(f, fs, "TOPLEFT", PAD, y)
+        fs:SetWidth(W - PAD * 2)
+        setText(fs, q)
+        y = y + V(12, hk, 11)
     end
-    for i = n + 1, #f.quests do f.quests[i]:Hide() end
-    return M.WIDTH, y + PAD - 3
+    f.quests:HideFrom(#list + 1)
+    return W, y + PAD - 2
 end
 
 --------------------------------------------------------------------------------
--- Minimal: everything on one line
+-- Minimal: two short lines. Level, name, badge; then the bar, type, quest
+-- count and target.
 --------------------------------------------------------------------------------
 
-local N = { HEIGHT = 22, PAD = 6, GAP = 6, BAR_W = 54, BAR_H = 8, PCT_W = 30 }
+local N = { frame = "thin", BAR_W = 60 }
 Layouts.minimal = N
-N.short = true
 
 function N.Create(f)
-    Wg.ThinFrame(f, 0)
-    f.level = Wg.Text(f, 11, T.gold, "LEFT", "OUTLINE")
-    f.skull = makeSkull(f, 12)
-    f.name = Wg.Text(f, 12, T.text)
-    f.tag = makeTag(f, 8)
-    f.bar = makeBar(f, N.BAR_H, 10)
-    -- the percentage sits right of the bar, not on it
-    f.bar.text:ClearAllPoints()
-    f.bar.text:SetPoint("LEFT", f.bar, "RIGHT", 4, 0)
-    f.bar.text:SetWidth(N.PCT_W)
-    f.bar.text:SetJustifyH("LEFT")
-    f.target = Wg.Text(f, 11, T.text)
-    f.quest = Wg.Text(f, 11, T.gold)
+    f.level = text(f, 11, T.gold, { outline = "OUTLINE" })
+    f.skull = skull(f, 12)
+    f.name = text(f, 12)
+    f.tag = tag(f, 8)
+    f.bar = bar(f)
+    f.pct = f.bar.text
+    f.kind = text(f, 10, T.dim)
+    f.quest = text(f, 11, T.gold)
+    f.target = text(f, 11)
 end
 
-function N.Fill(f, info, s)
-    local x = N.PAD
-    local function place(region, w)
-        region:ClearAllPoints()
-        region:SetPoint("LEFT", f, "LEFT", x, 0)
-        x = x + w + N.GAP
+function N.Fill(f, info, s, wk, hk)
+    local PAD, GAP = 6, 6
+    -- first line
+    local x, y = PAD, 4
+    if setLevel(f, info) then
+        at(f, f.skull, "TOPLEFT", x, y + 1)
+        x = x + 12 + GAP
+    else
+        at(f, f.level, "TOPLEFT", x, y + 1)
+        x = x + width(f.level, 14) + GAP
     end
-    if setLevel(f.level, f.skull, info) then place(f.skull, 12) else place(f.level, width(f.level, 14)) end
+    at(f, f.name, "TOPLEFT", x, y)
+    f.name:SetWidth(0)
     setText(f.name, info.name)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    place(f.name, width(f.name, 110))
+    x = x + width(f.name, 110)
     f.tag:Set(KT.Classification[info.cls])
-    if f.tag:IsShown() then place(f.tag, f.tag:GetWidth()) end
-    Layouts.SetHealth(f.bar, info, true)
-    f.bar:SetWidth(N.BAR_W)
-    place(f.bar, N.BAR_W + 4 + N.PCT_W - N.GAP)
-
-    if s.lines.target and info.target then
-        setText(f.target, "» " .. tostring(clean(info.target) or ""))
-        f.target:SetTextColor(Wg.rgb(info.targetColor or T.text))
-        f.target:Show()
-        place(f.target, width(f.target, 40))
-    else
-        f.target:Hide()
+    if f.tag:IsShown() then
+        at(f, f.tag, "TOPLEFT", x + GAP, y + 2)
+        x = x + GAP + f.tag:GetWidth()
     end
-    local count = s.lines.quests and questCount(info)
+    local w1 = x + PAD
+
+    -- second line: the bar with its percentage, then what's left
+    y = y + V(17, hk, 15)
+    local bw, bh = max(30, floor(N.BAR_W * wk + 0.5)), V(8, hk, 4)
+    x = PAD
+    placeBar(f, f.bar, x, y + floor((12 - bh) / 2), bw, bh)
+    Layouts.SetHealth(f.bar, info, s, true)
+    f.pct:SetFont(Wg.FONT, 10, "OUTLINE")
+    f.pct._size = 10
+    at(f, f.pct, "TOPLEFT", x + bw + 4, y)
+    f.pct:Show()
+    x = x + bw + 4 + max(width(f.pct, 24), 24) + GAP
+    local kind = Layouts.Kind(info)
+    if kind ~= "" then
+        at(f, f.kind, "TOPLEFT", x, y + 1)
+        f.kind:SetText(kind)
+        f.kind:Show()
+        x = x + width(f.kind, 60) + GAP
+    else
+        f.kind:Hide()
+    end
+    local count = Layouts.QuestCount(info, s.lines)
     if count then
+        at(f, f.quest, "TOPLEFT", x, y)
         f.quest:SetText(count)
         f.quest:Show()
-        place(f.quest, width(f.quest, 24))
+        x = x + width(f.quest, 24) + GAP
     else
         f.quest:Hide()
     end
-    return x - N.GAP + N.PAD, N.HEIGHT
-end
-
---------------------------------------------------------------------------------
--- More shared pieces for the looks below
---------------------------------------------------------------------------------
-
--- the level in a gold ring (or the skull), as on the Regular card
-local function makeRing(f, size)
-    local badge = CreateFrame("Frame", nil, f)
-    badge:SetSize(size, size)
-    local disc = badge:CreateTexture(nil, "BACKGROUND")
-    disc:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-    disc:SetVertexColor(0.15, 0.10, 0.07, 1)
-    disc:SetPoint("TOPLEFT", 3, -3)
-    disc:SetPoint("BOTTOMRIGHT", -3, 3)
-    local ring = badge:CreateTexture(nil, "OVERLAY")
-    ring:SetTexture(KT.Files.ring)
-    ring:SetSize(size * 1.8, size * 1.8)
-    ring:SetPoint("TOPLEFT", -size / 15, size / 15)
-    f.level = Wg.Text(badge, size >= 26 and 12 or 10, T.gold, "CENTER", "OUTLINE")
-    f.level:SetPoint("CENTER", 0, 0)
-    f.skull = makeSkull(badge, size * 0.55)
-    f.skull:SetPoint("CENTER")
-    return badge
-end
-
--- a small icon with a value next to it, for the Icons look
-local function makeChip(f, files)
-    local chip = CreateFrame("Frame", nil, f)
-    chip:SetSize(30, 14)
-    chip.icon = chip:CreateTexture(nil, "ARTWORK")
-    chip.icon:SetSize(13, 13)
-    chip.icon:SetPoint("LEFT")
-    chip.icon:SetTexture(Wg.FirstFile(files))
-    chip.text = Wg.Text(chip, 10, T.text)
-    chip.text:SetPoint("LEFT", chip.icon, "RIGHT", 2, 0)
-    function chip:Set(value, color)
-        if value == nil then return self:Hide() end
-        setText(self.text, value)
-        self.text:SetTextColor(Wg.rgb(color or T.text))
-        self:SetWidth(15 + width(self.text, 24))
-        self:Show()
-        return true
+    local target = targetText(info, s.lines)
+    if target then
+        at(f, f.target, "TOPLEFT", x, y)
+        setText(f.target, target)
+        f.target:SetTextColor(Wg.rgb(info.targetColor or T.text))
+        f.target:Show()
+        x = x + width(f.target, 40) + GAP
+    else
+        f.target:Hide()
     end
-    return chip
-end
-
--- the difficulty word with the level difference: "Hard (+3)"
-local function difficultyText(info)
-    if not info.difficulty then return nil end
-    if info.diff and info.diff ~= 0 then return ("%s (%+d)"):format(info.difficulty, info.diff) end
-    return info.difficulty
-end
-
-local function wrap(fs, w)
-    fs:SetWordWrap(true)
-    fs:SetWidth(w)
+    local w2 = x - GAP + PAD
+    return max(w1, w2), y + 12 + 5
 end
 
 --------------------------------------------------------------------------------
 -- Classic: the game's own tooltip, line by line, in the gold frame
 --------------------------------------------------------------------------------
 
-local CL = { PAD = 8, LINE = 15, MIN = 150, MAX = 270 }
+local CL = { frame = "thin", MIN = 150, MAX = 280 }
 Layouts.classic = CL
 
 function CL.Create(f)
-    Wg.ThinFrame(f, 0)
-    f.name = Wg.Text(f, 13, T.text)
-    f.lines = {}
-    f.bar = makeBar(f, 8, 9)
+    f.name = text(f, 13)
+    f.lines = pool(function() return text(f, 11) end)
+    f.bar = bar(f)
 end
 
-function CL.Fill(f, info, s)
-    local PAD = CL.PAD
+function CL.Fill(f, info, s, wk, hk)
+    local PAD = 8
     local lines = {}
-    local function add(text, color) lines[#lines + 1] = { text, color or T.text } end
+    local function add(t, color) lines[#lines + 1] = { t, color or T.text } end
     if info.isPlayer and info.guild then add("<" .. info.guild .. ">") end
-    if info.subtitle then add(info.subtitle) end
     local level = (info.level and info.level > 0) and tostring(info.level) or "??"
-    local what = info.isPlayer and Layouts.Kind(info):gsub(" · ", " ") or (info.family or info.ctype or "")
-    local cls = KT.Classification[info.cls]
-    add(("Level %s %s%s"):format(level, what, cls and (" (" .. cls:sub(1, 1) .. cls:sub(2):lower() .. ")") or ""))
-    if info.difficulty and s.lines.difficulty then add(difficultyText(info), info.difficultyColor) end
+    local what = Layouts.Kind(info)
+    if info.isPlayer then what = what:gsub(" · ", " ") end
+    local r = rank(info)
+    add(("Level %s %s%s"):format(level, what, r and (" (" .. r .. ")") or ""))
+    local diff = difficultyText(info, s.lines)
+    if diff then add(diff, info.difficultyColor) end
     if s.lines.target and info.target then add("Target: " .. tostring(info.target), info.targetColor) end
     if s.lines.friends and info.together then add(("Killed with %s: %d"):format(info.partner or "your friend", info.together), T.teal) end
     for _, q in ipairs(s.lines.quests and info.quests or {}) do add(q[1], q[2] and T.gold or T.text) end
 
+    at(f, f.name, "TOPLEFT", PAD, 7)
+    f.name:SetWidth(0)
     setText(f.name, info.name)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    f.name:ClearAllPoints()
-    f.name:SetPoint("TOPLEFT", PAD, -7)
     local w = width(f.name, 120)
-    local y = 7 + CL.LINE + 2
+    local y, step = 7 + V(16, hk, 14), V(14, hk, 12)
     for i, l in ipairs(lines) do
-        local fs = f.lines[i] or Wg.Text(f, 11, T.text)
-        f.lines[i] = fs
-        fs:ClearAllPoints()
-        fs:SetPoint("TOPLEFT", PAD, -y)
+        local fs = f.lines:Get(i)
+        at(f, fs, "TOPLEFT", PAD, y)
+        fs:SetWidth(0)
         setText(fs, l[1])
         fs:SetTextColor(Wg.rgb(l[2]))
-        fs:Show()
-        w = math.max(w, width(fs, 100))
-        y = y + CL.LINE - 1
+        w = max(w, width(fs, 100))
+        y = y + step
     end
-    for i = #lines + 1, #f.lines do f.lines[i]:Hide() end
-    w = math.max(CL.MIN, math.min(CL.MAX, w + PAD * 2))
-    f.bar:ClearAllPoints()
-    f.bar:SetPoint("TOPLEFT", PAD, -(y + 4))
-    f.bar:SetPoint("TOPRIGHT", -PAD, -(y + 4))
-    Layouts.SetHealth(f.bar, info, true)
-    return w, y + 4 + 8 + PAD
-end
-
---------------------------------------------------------------------------------
--- Wide: a low banner, the ring left, the bar right
---------------------------------------------------------------------------------
-
-local WD = { WIDTH = 330, HEIGHT = 48, PAD = 8, SPLIT = 190 }
-Layouts.wide = WD
-
-function WD.Create(f)
-    Wg.ThinFrame(f, 0)
-    f.badge = makeRing(f, 32)
-    f.badge:SetPoint("LEFT", 7, 0)
-    f.name = Wg.Title(f, 15)
-    f.name:SetPoint("TOPLEFT", 46, -7)
-    f.name:SetPoint("RIGHT", f, "LEFT", WD.SPLIT - 6, 0)
-    f.sub = Wg.Text(f, 10, T.dim)
-    f.sub:SetPoint("TOPLEFT", 46, -27)
-    f.tag = makeTag(f, 8)
-    f.tag:SetPoint("LEFT", f.sub, "RIGHT", 4, 0)
-    f.bar = makeBar(f, 14, 10)
-    f.bar:SetPoint("TOPLEFT", WD.SPLIT, -8)
-    f.bar:SetPoint("TOPRIGHT", -WD.PAD, -8)
-    f.left = Wg.Text(f, 10, T.dim)
-    f.left:SetPoint("TOPLEFT", WD.SPLIT, -28)
-    f.right = Wg.Text(f, 10, T.text, "RIGHT")
-    f.right:SetPoint("TOPRIGHT", -WD.PAD, -28)
-    f.quest = Wg.Text(f, 10, T.text)
-    f.quest:SetPoint("TOPLEFT", 46, -WD.HEIGHT + 4)
-end
-
-function WD.Fill(f, info, s)
-    setLevel(f.level, f.skull, info)
-    setText(f.name, info.name)
-    f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    f.sub:SetText(Layouts.Kind(info))
-    f.tag:Set(KT.Classification[info.cls])
-    Layouts.SetHealth(f.bar, info)
-    local diff = s.lines.difficulty and difficultyText(info)
-    f.left:SetText(diff or (info.guild and "<" .. info.guild .. ">") or "")
-    f.left:SetTextColor(Wg.rgb(diff and info.difficultyColor or T.dim))
-    if s.lines.target and info.target then
-        setText(f.right, "» " .. tostring(info.target))
-        f.right:SetTextColor(Wg.rgb(info.targetColor or T.text))
-        f.right:Show()
-    else
-        f.right:Hide()
-    end
-    local h = WD.HEIGHT
-    local objective
-    for _, q in ipairs(s.lines.quests and info.quests or {}) do if not q[2] then objective = objective or q[1] end end
-    if objective then
-        setText(f.quest, objective)
-        f.quest:Show()
-        h = h + 12
-    else
-        f.quest:Hide()
-    end
-    return WD.WIDTH, h
+    f.lines:HideFrom(#lines + 1)
+    local W = max(floor(CL.MIN * wk + 0.5), min(floor(CL.MAX * wk + 0.5), w + PAD * 2))
+    -- long lines end in "..." at the card's edge
+    f.name:SetWidth(W - PAD * 2)
+    for i = 1, #lines do f.lines[i]:SetWidth(W - PAD * 2) end
+    local bh = V(8, hk, 4)
+    y = y + V(3, hk, 2)
+    placeBar(f, f.bar, PAD, y, W - PAD * 2, bh)
+    barText(f, f.bar, PAD, y, W - PAD * 2, bh)
+    Layouts.SetHealth(f.bar, info, s, true)
+    return W, y + bh + PAD
 end
 
 --------------------------------------------------------------------------------
 -- Plate: like a nameplate, centred and small
 --------------------------------------------------------------------------------
 
-local PL = { WIDTH = 170, BAR_H = 10 }
+local PL = { frame = "thin", WIDTH = 170 }
 Layouts.plate = PL
 
 function PL.Create(f)
-    Wg.ThinFrame(f, 0)
-    f.name = Wg.Text(f, 12, T.text, "CENTER")
-    f.name:SetPoint("TOP", 0, -5)
-    f.name:SetWidth(PL.WIDTH - 12)
-    f.level = Wg.Text(f, 10, T.gold, "RIGHT", "OUTLINE")
-    f.level:SetPoint("TOPLEFT", 4, -22)
-    f.level:SetWidth(22)
-    f.skull = makeSkull(f, 11)
-    f.skull:SetPoint("TOPLEFT", 12, -21)
-    f.bar = makeBar(f, PL.BAR_H, 9)
-    f.bar:SetPoint("TOPLEFT", 30, -22)
-    f.bar:SetPoint("TOPRIGHT", -8, -22)
-    f.target = Wg.Text(f, 10, T.text, "CENTER")
-    f.target:SetPoint("TOP", 0, -36)
+    f.name = text(f, 12)
+    f.level = text(f, 10, T.gold, { outline = "OUTLINE" })
+    f.skull = skull(f, 11)
+    f.bar = bar(f)
+    f.info = text(f, 10)
 end
 
-function PL.Fill(f, info, s)
-    setLevel(f.level, f.skull, info)
-    -- the classic elite mark: a plus after the level
-    if info.cls == "elite" or info.cls == "rareelite" or info.cls == "worldboss" then
-        if f.level:IsShown() then f.level:SetText(info.level .. "+") end
-    end
+function PL.Fill(f, info, s, wk, hk)
+    local W = max(130, min(340, floor(PL.WIDTH * wk + 0.5)))
     local name = info.name
     if info.cls == "rare" or info.cls == "rareelite" then
         local plain = clean(info.name)
         if plain then name = plain .. " (Rare)" end
     end
+    at(f, f.name, "TOP", W / 2, 5)
+    f.name:SetWidth(W - 12)
+    f.name:SetJustifyH("CENTER")
     setText(f.name, name)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    Layouts.SetHealth(f.bar, info, true)
-    if s.lines.target and info.target then
-        setText(f.target, "» " .. tostring(info.target))
-        f.target:SetTextColor(Wg.rgb(info.targetColor or T.text))
-        f.target:Show()
-        return PL.WIDTH, 52
+
+    local y, bh = 5 + V(17, hk, 15), V(10, hk, 5)
+    placeBar(f, f.bar, 30, y, W - 38, bh)
+    barText(f, f.bar, 30, y, W - 38, bh)
+    Layouts.SetHealth(f.bar, info, s, true)
+    setLevel(f, info)
+    -- the classic elite mark: a plus after the level
+    if f.level:IsShown() and (info.cls == "elite" or info.cls == "rareelite" or info.cls == "worldboss") then
+        f.level:SetText(info.level .. "+")
     end
-    f.target:Hide()
-    return PL.WIDTH, 38
+    at(f, f.level, "TOPRIGHT", 26, y + floor((bh - 10) / 2))
+    at(f, f.skull, "TOPLEFT", 13, y + floor((bh - 11) / 2))
+    y = y + bh + V(4, hk, 3)
+
+    -- what it is, its quest count and its target, on one centred line
+    local bits = {}
+    local kind = Layouts.Kind(info)
+    if kind ~= "" then bits[#bits + 1] = paint(kind, T.dim) end
+    local count = Layouts.QuestCount(info, s.lines)
+    if count then bits[#bits + 1] = paint(count, T.gold) end
+    local target = targetText(info, s.lines)
+    if target then bits[#bits + 1] = paint(target, info.targetColor or T.text) end
+    if #bits == 0 then
+        f.info:Hide()
+        return W, y + 2
+    end
+    at(f, f.info, "TOP", W / 2, y)
+    f.info:SetWidth(W - 8)
+    f.info:SetJustifyH("CENTER")
+    f.info:SetText(table.concat(bits, "  "))
+    f.info:Show()
+    return W, y + 13 + 4
 end
 
 --------------------------------------------------------------------------------
 -- Portrait: like the game's target frame, with the unit's face
 --------------------------------------------------------------------------------
 
-local PO = { WIDTH = 250, HEIGHT = 64, FACE = 52, PAD = 8 }
+local PO = { frame = "thin", WIDTH = 250, FACE = 52 }
 Layouts.portrait = PO
 
+-- an icon for the creature's kind, when the game can't draw its face
+local KIND_ICON = {
+    Beast = "Ability_Hunter_Pet_Wolf", Humanoid = "INV_Misc_Head_Human_01", Undead = "Spell_Shadow_RaiseDead",
+    Demon = "Spell_Shadow_SummonFelHunter", Elemental = "Spell_Frost_SummonWaterElemental", Dragonkin = "INV_Misc_Head_Dragon_01",
+    Mechanical = "INV_Gizmo_01", Giant = "Ability_Racial_Avatar", Critter = "Ability_Hunter_Pet_Rat",
+}
+Layouts.KIND_ICON = KIND_ICON
+
 function PO.Create(f)
-    Wg.ThinFrame(f, 0)
     local face = f:CreateTexture(nil, "ARTWORK")
     face:SetSize(PO.FACE, PO.FACE)
-    face:SetPoint("TOPLEFT", 6, -6)
     local mask = f.CreateMaskTexture and f:CreateMaskTexture()
     if mask then
         mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
         mask:SetAllPoints(face)
         face:AddMaskTexture(mask)
     end
-    f.face = face
-    local ring = f:CreateTexture(nil, "OVERLAY")
-    ring:SetTexture(KT.Files.ring)
-    ring:SetSize(PO.FACE * 1.75, PO.FACE * 1.75)
-    ring:SetPoint("TOPLEFT", face, "TOPLEFT", -4, 4)
+    f.face = part(f, face, "face")
+    f.face._size = PO.FACE
+    local edge = f:CreateTexture(nil, "OVERLAY")
+    edge:SetTexture(KT.Files.ring)
+    edge:SetSize(PO.FACE * 1.75, PO.FACE * 1.75)
+    edge:SetPoint("TOPLEFT", face, "TOPLEFT", -4, 4)
     -- the level in a small ring on the face's lower left, as on the game's frames
-    f.badge = makeRing(f, 22)
-    f.badge:SetPoint("BOTTOMLEFT", face, "BOTTOMLEFT", -4, -4)
-    f.badge:SetFrameLevel((f:GetFrameLevel() or 1) + 2)
-
-    local band = Wg.Solid(f, "BACKGROUND", T.band, nil, 1)
-    band:SetPoint("TOPLEFT", PO.FACE + 12, -6)
-    band:SetPoint("TOPRIGHT", -PO.PAD, -6)
-    band:SetHeight(18)
-    f.name = Wg.Title(f, 13)
-    f.name:SetPoint("TOPLEFT", PO.FACE + 16, -8)
-    f.name:SetPoint("RIGHT", f, "RIGHT", -PO.PAD - 4, 0)
-    f.bar = makeBar(f, 13, 10)
-    f.bar:SetPoint("TOPLEFT", PO.FACE + 12, -28)
-    f.bar:SetPoint("TOPRIGHT", -PO.PAD, -28)
-    f.sub = Wg.Text(f, 10, T.dim)
-    f.sub:SetPoint("TOPLEFT", PO.FACE + 12, -46)
-    f.target = Wg.Text(f, 10, T.text, "RIGHT")
-    f.target:SetPoint("TOPRIGHT", -PO.PAD, -46)
-    f.quests = {}
+    f.ring = ring(f, 22)
+    f.ring:SetFrameLevel((f:GetFrameLevel() or 1) + 3)
+    f.band = solid(f, T.band)
+    f.name = text(f, 13, nil, { title = true })
+    f.quest = text(f, 11, T.gold)
+    f.bar = bar(f)
+    f.sub = text(f, 10, T.dim)
+    f.target = text(f, 10)
+    f.quests = pool(function() return text(f, 10) end)
 end
 
--- the creature's look as a picture: its face when the game can draw it, an
--- icon for its kind otherwise (the sample, a unit that went away)
-local KIND_ICON = {
-    Beast = "Ability_Hunter_Pet_Wolf", Humanoid = "INV_Misc_Head_Human_01", Undead = "Spell_Shadow_RaiseDead",
-    Demon = "Spell_Shadow_SummonFelHunter", Elemental = "Spell_Frost_SummonWaterElemental", Dragonkin = "INV_Misc_Head_Dragon_01",
-    Mechanical = "INV_Gizmo_01", Giant = "Ability_Racial_Avatar", Critter = "Ability_Hunter_Pet_Rat",
-}
 local function setFace(tex, info)
     local unit = info.unit or info.portraitUnit
-    if unit and SetPortraitTexture and pcall(SetPortraitTexture, tex, unit) and KT.call(UnitExists, unit) then return end
-    tex:SetTexture("Interface\\Icons\\" .. (KIND_ICON[info.ctype] or "INV_Misc_QuestionMark"))
+    tex._unit = nil
+    if unit and SetPortraitTexture and KT.call(UnitExists, unit) and pcall(SetPortraitTexture, tex, unit) then
+        tex._unit = info.ctype or (info.isPlayer and "player") or "unit"
+        return
+    end
+    local icon = "Interface\\Icons\\" .. (KIND_ICON[info.ctype] or "INV_Misc_QuestionMark")
+    tex:SetTexture(icon)
+    tex._tex = icon
 end
 
-function PO.Fill(f, info, s)
+function PO.Fill(f, info, s, wk, hk)
+    local FACE, X = PO.FACE, PO.FACE + 12
+    local W = max(200, min(420, floor(PO.WIDTH * wk + 0.5)))
+    at(f, f.face, "TOPLEFT", 6, 6)
     setFace(f.face, info)
-    setLevel(f.level, f.skull, info)
-    local name = info.name
-    local cls = KT.Classification[info.cls]
-    setText(f.name, name)
+    at(f, f.ring, "TOPLEFT", 2, 40)
+    setLevel(f, info)
+
+    at(f, f.band, "TOPLEFT", X, 6)
+    f.band:SetSize(W - X - 8, 18)
+    local count = Layouts.QuestCount(info, s.lines)
+    if count then
+        at(f, f.quest, "TOPRIGHT", W - 12, 8)
+        f.quest:SetText(count)
+        f.quest:Show()
+    else
+        f.quest:Hide()
+    end
+    at(f, f.name, "TOPLEFT", X + 4, 8)
+    f.name:SetWidth(W - X - 16 - (count and width(f.quest, 24) + 6 or 0))
+    setText(f.name, info.name)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    Layouts.SetHealth(f.bar, info)
+
+    local y, bh = 28, V(13, hk, 6)
+    placeBar(f, f.bar, X, y, W - X - 8, bh)
+    barText(f, f.bar, X, y, W - X - 8, bh)
+    Layouts.SetHealth(f.bar, info, s)
+    y = y + bh + V(5, hk, 3)
+
     local kind = Layouts.Kind(info)
-    if cls then kind = (kind ~= "" and kind .. " · " or "") .. cls:sub(1, 1) .. cls:sub(2):lower() end
+    local r = rank(info)
+    if r then kind = (kind ~= "" and kind .. " · " or "") .. r end
+    at(f, f.sub, "TOPLEFT", X, y)
     f.sub:SetText(kind)
-    if s.lines.target and info.target then
-        setText(f.target, "» " .. tostring(info.target))
+    local target = targetText(info, s.lines)
+    if target then
+        at(f, f.target, "TOPRIGHT", W - 8, y)
+        setText(f.target, target)
         f.target:SetTextColor(Wg.rgb(info.targetColor or T.text))
         f.target:Show()
     else
         f.target:Hide()
     end
-    local y, n = PO.HEIGHT, 0
-    for _, q in ipairs(s.lines.quests and info.quests or {}) do
-        if not q[2] then
-            n = n + 1
-            local fs = f.quests[n] or Wg.Text(f, 10, T.text)
-            f.quests[n] = fs
-            fs:ClearAllPoints()
-            fs:SetPoint("TOPLEFT", PO.FACE + 12, -(y - 2))
-            setText(fs, q[1])
-            fs:Show()
-            y = y + 12
-        end
-    end
-    for i = n + 1, #f.quests do f.quests[i]:Hide() end
-    return PO.WIDTH, y + (n > 0 and 2 or 0)
-end
+    y = y + 13 + V(3, hk, 2)
 
---------------------------------------------------------------------------------
--- Column: narrow and tall, everything centred
---------------------------------------------------------------------------------
-
-local CO = { WIDTH = 150, PAD = 8 }
-Layouts.column = CO
-
-function CO.Create(f)
-    Wg.DialogFrame(f)
-    f.badge = makeRing(f, 30)
-    f.badge:SetPoint("TOP", 0, -8)
-    f.name = Wg.Title(f, 14)
-    f.name:SetJustifyH("CENTER")
-    wrap(f.name, CO.WIDTH - CO.PAD * 2)
-    f.sub = Wg.Text(f, 10, T.dim, "CENTER")
-    f.tag = makeTag(f, 8)
-    f.bar = makeBar(f, 12, 10)
-    f.rows = {}
-    f.quests = {}
-end
-
-function CO.Fill(f, info, s)
-    local PAD, W = CO.PAD, CO.WIDTH
-    setLevel(f.level, f.skull, info)
-    setText(f.name, info.name)
-    f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    local y = 44
-    f.name:ClearAllPoints()
-    f.name:SetPoint("TOP", 0, -y)
-    local nameH = clean(f.name:GetStringHeight())
-    y = y + ((type(nameH) == "number" and nameH > 0) and nameH or 16) + 2
-    f.sub:ClearAllPoints()
-    f.sub:SetPoint("TOP", 0, -y)
-    f.sub:SetText(Layouts.Kind(info))
-    y = y + 13
-    f.tag:Set(KT.Classification[info.cls])
-    if f.tag:IsShown() then
-        f.tag:ClearAllPoints()
-        f.tag:SetPoint("TOP", 0, -y)
-        y = y + 15
+    local list = objectives(info, s.lines)
+    for i, q in ipairs(list) do
+        local fs = f.quests:Get(i)
+        at(f, fs, "TOPLEFT", X, y)
+        fs:SetWidth(W - X - 8)
+        setText(fs, q)
+        y = y + V(12, hk, 11)
     end
-    f.bar:ClearAllPoints()
-    f.bar:SetPoint("TOPLEFT", PAD, -(y + 2))
-    f.bar:SetPoint("TOPRIGHT", -PAD, -(y + 2))
-    Layouts.SetHealth(f.bar, info, true)
-    y = y + 20
-    -- each line as a small label over its value
-    local rows = Layouts.Rows(info, s.lines)
-    local n = 0
-    local function line(text, size, color)
-        n = n + 1
-        local fs = f.rows[n] or Wg.Text(f, size, color, "CENTER")
-        f.rows[n] = fs
-        fs:SetFont(Wg.FONT, size, "")
-        fs:ClearAllPoints()
-        fs:SetPoint("TOP", 0, -y)
-        setText(fs, text)
-        fs:SetTextColor(Wg.rgb(color))
-        fs:Show()
-        y = y + size + 3
-    end
-    for _, r in ipairs(rows) do
-        line(r[1], 9, T.faint)
-        line(r[2], 11, r[3] or T.text)
-        y = y + 2
-    end
-    for _, q in ipairs(s.lines.quests and info.quests or {}) do
-        if not q[2] then line((strtrim(tostring(clean(q[1]) or "")):gsub("^%-%s*", "")), 10, T.gold) end
-    end
-    for i = n + 1, #f.rows do f.rows[i]:Hide() end
-    return W, y + PAD
+    f.quests:HideFrom(#list + 1)
+    return W, max(FACE + 12, y + 3)
 end
 
 --------------------------------------------------------------------------------
 -- Bar: the health bar is the card, the name written on it
 --------------------------------------------------------------------------------
 
-local BA = { WIDTH = 230, BAR_H = 22, BOX = 26 }
+local BA = { frame = "thin", WIDTH = 230, BOX = 26 }
 Layouts.bar = BA
 
 function BA.Create(f)
-    Wg.ThinFrame(f, 0)
-    f.box = Wg.Solid(f, "BACKGROUND", { 0, 0, 0 }, 0.5, 1)
-    f.box:SetPoint("TOPLEFT", 2, -2)
-    f.box:SetSize(BA.BOX - 2, BA.BAR_H)
-    f.level = Wg.Text(f, 11, T.gold, "CENTER", "OUTLINE")
-    f.level:SetPoint("CENTER", f, "TOPLEFT", BA.BOX / 2 + 1, -(BA.BAR_H / 2 + 2))
-    f.skull = makeSkull(f, 12)
-    f.skull:SetPoint("CENTER", f, "TOPLEFT", BA.BOX / 2 + 1, -(BA.BAR_H / 2 + 2))
-    f.bar = makeBar(f, BA.BAR_H - 2, 11)
-    f.bar:SetPoint("TOPLEFT", BA.BOX + 2, -3)
-    f.bar:SetPoint("TOPRIGHT", -3, -3)
-    f.bar.text:ClearAllPoints()
-    f.bar.text:SetPoint("RIGHT", -4, 0)
-    f.name = Wg.Text(f.bar, 12, T.text, "LEFT", "OUTLINE")
-    f.name:SetPoint("LEFT", 5, 0)
-    f.name:SetPoint("RIGHT", f.bar.text, "LEFT", -4, 0)
-    f.info = Wg.Text(f, 10, T.dim)
-    f.info:SetPoint("TOPLEFT", 6, -(BA.BAR_H + 6))
-    f.target = Wg.Text(f, 10, T.text, "RIGHT")
-    f.target:SetPoint("TOPRIGHT", -6, -(BA.BAR_H + 6))
+    f.box = solid(f, { 0, 0, 0 }, 0.5)
+    f.level = text(f, 11, T.gold, { outline = "OUTLINE" })
+    f.skull = skull(f, 12)
+    f.bar = bar(f)
+    f.name = text(f, 12, nil, { outline = "OUTLINE", top = true })
+    f.info = text(f, 10, T.dim)
+    f.target = text(f, 10)
 end
 
-function BA.Fill(f, info, s)
-    setLevel(f.level, f.skull, info)
+function BA.Fill(f, info, s, wk, hk)
+    local BOX = BA.BOX
+    local W = max(160, min(400, floor(BA.WIDTH * wk + 0.5)))
+    local bh = V(22, hk, 14)
+    at(f, f.box, "TOPLEFT", 2, 2)
+    f.box:SetSize(BOX - 2, bh)
+    setLevel(f, info)
+    at(f, f.level, "TOP", BOX / 2 + 1, 2 + floor((bh - 11) / 2))
+    at(f, f.skull, "TOPLEFT", BOX / 2 - 5, 2 + floor((bh - 12) / 2))
+
+    placeBar(f, f.bar, BOX + 2, 3, W - BOX - 5, bh - 2)
+    Layouts.SetHealth(f.bar, info, s, true)
+    local size = min(11, max(8, bh - 8))
+    f.bar.text:SetFont(Wg.FONT, size, "OUTLINE")
+    f.bar.text._size = size
+    at(f, f.bar.text, "TOPRIGHT", W - 7, 3 + floor((bh - 2 - size) / 2))
+    f.bar.text:Show()
+    local nsize = min(12, max(9, bh - 8))
+    f.name:SetFont(Wg.FONT, nsize, "OUTLINE")
+    f.name._size = nsize
+    at(f, f.name, "TOPLEFT", BOX + 7, 3 + floor((bh - 2 - nsize) / 2))
+    f.name:SetWidth(W - BOX - 7 - 46)
     setText(f.name, info.name)
     -- the name sits on the bar, so it keeps its colour but stays readable
     f.name:SetTextColor(Wg.rgb(info.classColor or (info.reaction == "neutral" and KT.Reaction.neutral) or T.text))
-    Layouts.SetHealth(f.bar, info, true)
+
+    -- below: what it is, its rank, quest count and guild; the target on the right
     local bits = {}
-    local cls = KT.Classification[info.cls]
-    if cls then bits[#bits + 1] = "|cffffd100" .. cls:sub(1, 1) .. cls:sub(2):lower() .. "|r" end
-    local count = s.lines.quests and questCount(info)
-    if count then bits[#bits + 1] = "|cffffd100" .. count .. "|r" end
+    local kind = Layouts.Kind(info)
+    if kind ~= "" then bits[#bits + 1] = kind end
+    local r = rank(info)
+    if r then bits[#bits + 1] = paint(r, T.gold) end
+    local count = Layouts.QuestCount(info, s.lines)
+    if count then bits[#bits + 1] = paint(count, T.gold) end
     if info.guild then bits[#bits + 1] = "<" .. info.guild .. ">" end
-    f.info:SetText(table.concat(bits, "  "))
-    local target = s.lines.target and info.target
+    local target = targetText(info, s.lines)
+    local y = bh + 6
     if target then
-        setText(f.target, "» " .. tostring(target))
+        at(f, f.target, "TOPRIGHT", W - 6, y)
+        setText(f.target, target)
         f.target:SetTextColor(Wg.rgb(info.targetColor or T.text))
         f.target:Show()
     else
@@ -864,82 +901,95 @@ function BA.Fill(f, info, s)
     end
     if #bits == 0 and not target then
         f.info:Hide()
-        return BA.WIDTH, BA.BAR_H + 4
+        return W, bh + 4
     end
+    at(f, f.info, "TOPLEFT", 6, y)
+    f.info:SetWidth(W - 12 - (target and width(f.target, 40) + 8 or 0))
+    f.info:SetText(table.concat(bits, " · "))
     f.info:Show()
-    return BA.WIDTH, BA.BAR_H + 20
+    return W, y + 13 + 3
 end
 
 --------------------------------------------------------------------------------
 -- Icons: name and bar, then the details as small icons with a value
 --------------------------------------------------------------------------------
 
-local IC = { MIN = 190, PAD = 7 }
+local IC = { frame = "thin", MIN = 190 }
 Layouts.icons = IC
 
 local ICON = {
     target = { "Interface\\CURSOR\\Attack" },
-    difficulty = { "Interface\\Icons\\Ability_DualWield", "Interface\\Icons\\INV_Sword_04" },
     quest = { "Interface\\GossipFrame\\ActiveQuestIcon", "Interface\\GossipFrame\\AvailableQuestIcon" },
     friends = { "Interface\\Icons\\Achievement_Reputation_01", "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01" },
     guild = { "Interface\\Icons\\INV_Shirt_GuildTabard_01", "Interface\\Icons\\INV_Misc_Note_01" },
 }
 
 function IC.Create(f)
-    Wg.ThinFrame(f, 0)
-    f.level = Wg.Text(f, 12, T.gold, "LEFT", "OUTLINE")
-    f.level:SetPoint("TOPLEFT", IC.PAD, -7)
-    f.skull = makeSkull(f, 13)
-    f.skull:SetPoint("TOPLEFT", IC.PAD, -6)
-    f.name = Wg.Text(f, 13, T.text)
-    f.tag = makeTag(f, 8)
-    f.bar = makeBar(f, 8, 9)
-    f.bar.text:ClearAllPoints()
-    f.bar.text:SetPoint("LEFT", f.bar, "RIGHT", 4, 0)
+    f.level = text(f, 12, T.gold, { outline = "OUTLINE" })
+    f.skull = skull(f, 13)
+    f.name = text(f, 13)
+    f.tag = tag(f, 8)
+    f.bar = bar(f)
     f.chips = {}
-    for _, key in ipairs({ "target", "difficulty", "quest", "friends", "guild" }) do
-        f.chips[#f.chips + 1] = makeChip(f, ICON[key])
-        f.chips[key] = f.chips[#f.chips]
+    for _, key in ipairs({ "target", "kind", "quest", "friends", "guild" }) do
+        local c = chip(f)
+        f.chips[#f.chips + 1] = c
+        f.chips[key] = c
     end
 end
 
-function IC.Fill(f, info, s)
-    local PAD = IC.PAD
-    local skull = setLevel(f.level, f.skull, info)
-    local x = PAD + (skull and 13 or width(f.level, 14)) + 5
+function IC.Fill(f, info, s, wk, hk)
+    local PAD = 7
+    local x = PAD
+    if setLevel(f, info) then
+        at(f, f.skull, "TOPLEFT", x, 6)
+        x = x + 13 + 5
+    else
+        at(f, f.level, "TOPLEFT", x, 7)
+        x = x + width(f.level, 14) + 5
+    end
+    at(f, f.name, "TOPLEFT", x, 6)
+    f.name:SetWidth(0)
     setText(f.name, info.name)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    f.name:ClearAllPoints()
-    f.name:SetPoint("TOPLEFT", x, -6)
     x = x + width(f.name, 110)
     f.tag:Set(KT.Classification[info.cls])
     if f.tag:IsShown() then
-        f.tag:ClearAllPoints()
-        f.tag:SetPoint("TOPLEFT", x + 5, -8)
+        at(f, f.tag, "TOPLEFT", x + 5, 8)
         x = x + 5 + f.tag:GetWidth()
     end
-    local w = math.max(IC.MIN, x + PAD)
+    local W = max(floor(IC.MIN * wk + 0.5), x + PAD)
 
     local c = f.chips
-    c.target:Set(s.lines.target and info.target or nil, info.targetColor)
-    c.difficulty:Set(s.lines.difficulty and difficultyText(info) or nil, info.difficultyColor)
-    c.quest:Set(s.lines.quests and questCount(info) or nil, T.gold)
-    c.friends:Set(s.lines.friends and info.together or nil, T.teal)
-    c.guild:Set(info.guild and ("<" .. info.guild .. ">") or nil, T.text)
+    local kindIcon = info.isPlayer and "INV_Misc_Head_Human_01" or KIND_ICON[info.ctype] or "INV_Misc_QuestionMark"
+    c.target:Set(Wg.FirstFile(ICON.target), targetText(info, s.lines) and tostring(info.target) or nil, info.targetColor)
+    local kind = info.isPlayer and info.className or info.family or info.ctype
+    c.kind:Set("Interface\\Icons\\" .. kindIcon, kind, T.dim)
+    c.quest:Set(Wg.FirstFile(ICON.quest), Layouts.QuestCount(info, s.lines), T.gold)
+    c.friends:Set(Wg.FirstFile(ICON.friends), s.lines.friends and info.together or nil, T.teal)
+    c.guild:Set(Wg.FirstFile(ICON.guild), info.guild and ("<" .. info.guild .. ">") or nil, T.text)
     local cx, any = PAD, false
-    for _, chip in ipairs(c) do
-        if chip:IsShown() then
-            chip:ClearAllPoints()
-            chip:SetPoint("TOPLEFT", cx, -40)
-            cx = cx + chip:GetWidth() + 8
-            any = true
+    for _, chipFrame in ipairs(c) do
+        if chipFrame:IsShown() then any = true; cx = cx + chipFrame:GetWidth() + 8 end
+    end
+    W = max(W, cx - 8 + PAD)
+
+    local y, bh = 6 + V(19, hk, 16), V(8, hk, 4)
+    local bw = W - PAD * 2 - 34
+    placeBar(f, f.bar, PAD, y, bw, bh)
+    Layouts.SetHealth(f.bar, info, s, true)
+    f.bar.text:SetFont(Wg.FONT, 9, "OUTLINE")
+    f.bar.text._size = 9
+    at(f, f.bar.text, "TOPLEFT", PAD + bw + 4, y + floor((bh - 9) / 2))
+    f.bar.text:Show()
+    y = y + bh + V(6, hk, 4)
+
+    cx = PAD
+    for _, chipFrame in ipairs(c) do
+        if chipFrame:IsShown() then
+            at(f, chipFrame, "TOPLEFT", cx, y)
+            cx = cx + chipFrame:GetWidth() + 8
         end
     end
-    w = math.max(w, cx - 8 + PAD)
-
-    f.bar:ClearAllPoints()
-    f.bar:SetPoint("TOPLEFT", PAD, -25)
-    f.bar:SetWidth(w - PAD * 2 - 34)
-    Layouts.SetHealth(f.bar, info, true)
-    return w, any and 60 or 42
+    return W, any and y + 14 + 5 or y + 2
 end

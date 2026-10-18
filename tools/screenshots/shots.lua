@@ -41,46 +41,44 @@ local Card = KT.Card
 local S = KrakentipDB.settings
 
 local function col(c) return c and { c[1], c[2], c[3] } or nil end
-local function shown(r) return r and r:IsShown() end
+
+-- A card as the screenshot tool draws it: its frame and each part that shows,
+-- where it sits from the card's top left corner, and what it shows.
 local function snap()
     local f = Card.frame
-    local out = { width = f:GetWidth(), height = f:GetHeight(), rows = {}, quests = {} }
-    out.name, out.nameColor = f.name:GetText(), col(f.name._color)
-    if shown(f.level) then out.level, out.levelColor = f.level:GetText(), col(f.level._color) end
-    out.skull = shown(f.skull) and true or false
-    out.sub = f.sub and f.sub:GetText()
-    out.tag = shown(f.tag) and f.tag.text:GetText() or nil
-    local v, max = f.bar:GetValue(), f.bar._max
-    out.fill = (type(v) == "number" and type(max) == "number" and max > 0) and v / max or 0.62
-    out.barColor = col(f.bar._color)
-    out.hp = f.bar.text:GetText()
-    for _, r in ipairs(f.rows or {}) do
-        if r:IsShown() then
-            if r.label then
-                out.rows[#out.rows + 1] = { r.label:GetText(), tostring(r.value:GetText()), col(r.value._color) }
-            else -- Column: one text per line
-                out.rows[#out.rows + 1] = { r:GetText(), r._size, col(r._color) }
+    local out = { look = f.look, w = f:GetWidth(), h = f:GetHeight(), parts = {} }
+    for _, p in ipairs(f.parts) do
+        if p:IsShown() and p._at then
+            local e = { kind = p._kind, point = p._at[1], x = p._at[2], y = p._at[3] }
+            local k = p._kind
+            if k == "text" then
+                e.text = tostring(p:GetText() or "")
+                e.size, e.color, e.title, e.outline = p._size, col(p._color), p._title and true or false, p._outline and true or false
+                if (p._w or 0) > 0 then e.width = p._w end
+                e.justify = p._justify
+            elseif k == "solid" then
+                e.w, e.h, e.rgba = p._w, p._h, p._rgba
+            elseif k == "bar" then
+                e.w, e.h = p._size[1], p._size[2]
+                local v, m = p:GetValue(), p._max
+                e.fill = (type(v) == "number" and type(m) == "number" and m > 0) and v / m or 0.62
+                e.color, e.texture = col(p._color), p._texture
+            elseif k == "tag" then
+                e.text, e.size, e.w = p.text:GetText(), p._size, p:GetWidth()
+            elseif k == "skull" then
+                e.size = p._size
+            elseif k == "ring" then
+                e.size = p._size
+                e.skull = p.skull:IsShown() and true or false
+                if p.level:IsShown() then e.level, e.levelColor = tostring(p.level:GetText()), col(p.level._color) end
+            elseif k == "face" then
+                e.size, e.unit, e.tex = p._size, p._unit, p._tex
+            elseif k == "chip" then
+                e.icon, e.text, e.color = p._icon, tostring(p.text:GetText()), col(p.text._color)
             end
+            out.parts[#out.parts + 1] = e
         end
     end
-    out.lines = {}
-    for _, l in ipairs(f.lines or {}) do
-        if l:IsShown() then out.lines[#out.lines + 1] = { l:GetText(), col(l._color) } end
-    end
-    if shown(f.left) then out.left, out.leftColor = f.left:GetText(), col(f.left._color) end
-    if shown(f.right) then out.right, out.rightColor = f.right:GetText(), col(f.right._color) end
-    if f.info and f.info.GetText and shown(f.info) then out.info = f.info:GetText() end
-    out.chips = {}
-    for _, chip in ipairs(f.chips or {}) do
-        if chip:IsShown() then out.chips[#out.chips + 1] = { chip.icon._tex, chip.text:GetText(), col(chip.text._color) } end
-    end
-    if f.face then out.face = f.face._tex end
-    for _, q in ipairs(f.quests or {}) do
-        if q:IsShown() then out.quests[#out.quests + 1] = { q:GetText(), col(q._color) } end
-    end
-    if shown(f.target) then out.target, out.targetColor = f.target:GetText(), col(f.target._color) end
-    if shown(f.quest) then out.quest = f.quest:GetText() end
-    out.style = KrakentipDB.settings.style
     return out
 end
 
@@ -93,13 +91,32 @@ local function hover(unit)
     return s
 end
 
-local out = { cards = {} }
+local out = { cards = {}, variants = {} }
 for _, style in ipairs(KT.STYLES) do
     S.style = style
     local c = {}
     for _, unit in ipairs({ "wolf", "boar", "boss", "innkeeper", "friend" }) do c[unit] = hover(unit) end
     out.cards[style] = c
 end
+
+-- the same card at other widths and heights, and with other bars
+local function variant(name, style, dims, bar)
+    S.style = style
+    S.dims[style] = dims
+    S.bar = bar or { texture = "smooth", color = "reaction" }
+    out.variants[name] = hover("wolf")
+    S.dims[style] = nil
+end
+variant("regular", "regular")
+variant("regularSmall", "regular", { w = 0.8, h = 0.7 })
+variant("regularWide", "regular", { w = 1.3, h = 1.2 })
+variant("minimalWide", "minimal", { w = 1.6, h = 1.3 })
+for _, t in ipairs(KT.BarTextures) do variant("tex_" .. t.key, "mid", nil, { texture = t.key, color = "reaction" }) end
+for _, c in ipairs(KT.BarColors) do variant("col_" .. c.key, "mid", nil, { texture = "smooth", color = c.key }) end
+S.bar = { texture = "smooth", color = "reaction" }
+out.barLabels = {}
+for _, t in ipairs(KT.BarTextures) do out.barLabels["tex_" .. t.key] = t.label end
+for _, c in ipairs(KT.BarColors) do out.barLabels["col_" .. c.key] = c.label end
 S.style = "regular"
 
 -- the options window as it opens, with the sample card
@@ -113,7 +130,9 @@ local function radio(g)
 end
 local checks = {}
 for _, cb in ipairs(O.checks) do checks[#checks + 1] = { cb.label:GetText(), cb:GetChecked() and true or false } end
-out.options = { checks = checks, position = radio(O.position), styleName = O.styleName:GetText(), styleHint = O.styleHint:GetText(), scale = O.scaleText:GetText(), sample = O.sampleButton:GetText(), height = O.frame:GetHeight() }
+out.options = { checks = checks, position = radio(O.position), styleName = O.styleName:GetText(), styleHint = O.styleHint:GetText(),
+    width = O.widthText:GetText(), height = O.heightText:GetText(), texture = O.textureText:GetText(), color = O.colorText:GetText(),
+    scale = O.scaleText:GetText(), sample = O.sampleButton:GetText(), frameHeight = O.frame:GetHeight() }
 out.sample = snap()
 
 out.styles, out.labels, out.hints = KT.STYLES, KT.STYLE_LABEL, KT.STYLE_HINT

@@ -71,16 +71,39 @@ local function subtitle(tip, unit)
     return text
 end
 
+-- Action targeting gives the game a "soft" target: the unit you face, not the
+-- one under the mouse. Its tooltip comes on the same path.
+local SOFT = { "softenemy", "softfriend", "softinteract" }
+Hook.SOFT = {}
+for _, t in ipairs(SOFT) do Hook.SOFT[t] = true end
+
 -- The game may name the unit by any token it has ("target" when you hover your
--- target, a nameplate). Under the mouse we always call it "mouseover", so the
--- card notices the moment the mouse leaves it.
-local function unitOf(tip)
+-- target, a nameplate), or by none at all (a soft target). Under the mouse we
+-- always call it "mouseover", so the card notices the moment the mouse leaves
+-- it; otherwise we find a token from the tooltip's unit.
+local function unitOf(tip, data)
     local ok, _, unit = pcall(tip.GetUnit, tip)
-    unit = ok and clean(unit)
+    unit = ok and clean(unit) or nil
     if call(UnitExists, "mouseover") and (type(unit) ~= "string" or call(UnitIsUnit, unit, "mouseover")) then
         return "mouseover"
     end
+    local guid = clean(data and data.guid)
+    if type(guid) ~= "string" then guid = nil end
+    -- a soft target by its own name, so the card can tell when it changes
+    for _, tok in ipairs(SOFT) do
+        if call(UnitExists, tok) and ((unit and call(UnitIsUnit, tok, unit)) or (guid and call(UnitGUID, tok) == guid)) then return tok end
+    end
     if type(unit) == "string" and call(UnitExists, unit) then return unit end
+    if guid then
+        local tok = call(UnitTokenFromGUID, guid)
+        if type(tok) == "string" and call(UnitExists, tok) then return tok end
+    end
+    -- no name and no unit to match: the soft target is the one it's about
+    if not unit and not guid then
+        for _, tok in ipairs(SOFT) do
+            if call(UnitExists, tok) then return tok end
+        end
+    end
     return nil
 end
 
@@ -98,12 +121,12 @@ end
 
 function Hook:OnUnit(tip, data)
     if tip ~= GameTooltip then return end
-    if self.owning and not call(UnitExists, "mouseover") and Card.info and Card.info.unit == "mouseover" then
+    local unit = unitOf(tip, data)
+    if self.owning and not call(UnitExists, "mouseover") and Card.info and Card.info.unit == "mouseover" and not self.SOFT[unit] then
         -- the game redraws the tooltip once more when the mouse leaves: stay hidden
         pcall(tip.Hide, tip)
         return Card:LetGo()
     end
-    local unit = unitOf(tip)
     if not self:Wants(unit) then
         self.owning = nil
         return

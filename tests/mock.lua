@@ -61,7 +61,12 @@ end
 function Object:GetText() return self._text end
 function Object:SetTextColor(r, g, b) rawset(self, "_color", { r, g, b }) end
 function Object:GetTextColor() local c = self._color or { 1, 1, 1 }; return c[1], c[2], c[3] end
-function Object:GetStringWidth() return #(tostring(self._text or "")) * 6 end
+-- about as wide as the game's font draws it: half the size per letter, colour codes left out
+function Object:GetStringWidth()
+    if rawequal(self._text, SECRET) then return SECRET end
+    local t = tostring(self._text or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    return math.floor(utf8.len(t) * (self._size or 12) * 0.52 + 0.5)
+end
 function Object:SetAlpha(a) rawset(self, "_alpha", a) end
 function Object:GetAlpha() return self._alpha end
 function Object:SetScale(s) rawset(self, "_scale", s) end
@@ -106,7 +111,7 @@ Minimap = CreateFrame("Frame", "Minimap"); Minimap:SetSize(140, 140)
 function Object:GetCenter() return 100, 100 end
 function Object:GetFrameLevel() return 1 end
 function Object:IsMouseOver() return self._over or false end
-function Object:SetJustifyH() end
+function Object:SetJustifyH(j) rawset(self, "_justify", j) end
 DEFAULT_CHAT_FRAME = CreateFrame("Frame")
 function DEFAULT_CHAT_FRAME:AddMessage(msg)
     msg = tostring(msg):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")

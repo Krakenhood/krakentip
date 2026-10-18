@@ -14,7 +14,7 @@ local Compare = {}
 KT.Compare = Compare
 
 local PAD, GAP, LABEL = 16, 12, 16
-local COL_W = 340 -- the widest looks (Wide, Minimal with a long name) fit
+local COL_W = 300 -- at least; wider when a card is
 local TOP = 52    -- under the title and the line that says what's shown
 
 local function Cell(parent, style)
@@ -30,7 +30,7 @@ local function Cell(parent, style)
     cell.hint:SetText(KT.STYLE_HINT[style])
     local card = CreateFrame("Frame", nil, cell)
     card:SetPoint("TOPLEFT", 4, -(LABEL + 10)) -- room for the gold frames that reach out of the card
-    Layouts[style].Create(card)
+    Layouts.Build(card, style)
     cell.card = card
     cell:SetScript("OnEnter", function() cell.hl:Show() end)
     cell:SetScript("OnLeave", function() cell.hl:Hide() end)
@@ -99,20 +99,27 @@ function Compare:Fill()
         self.showing:SetText("Showing a sample wolf. Hover any creature or player to see it in every look.")
     end
 
-    -- each look into the shorter of two columns
+    -- fill every look, then put each into the shorter of two columns as wide
+    -- as the widest card
+    local colW = COL_W
+    for _, cell in ipairs(self.cells) do
+        local w, h = Layouts.Fill(cell.card, cell.style, info, s)
+        cell.card:SetSize(w, h)
+        cell.w, cell.h = w, h
+        colW = math.max(colW, w + 8)
+    end
     local heights = { TOP, TOP }
     for _, cell in ipairs(self.cells) do
-        local w, h = Layouts[cell.style].Fill(cell.card, info, s)
-        cell.card:SetSize(w, h)
         local now = cell.style == s.style
         cell.label:SetText(KT.STYLE_LABEL[cell.style] .. (now and "  (in use)" or ""))
         cell.label:SetTextColor(Wg.rgb(now and T.gold or T.dim))
         local col = heights[1] <= heights[2] and 1 or 2
         cell:ClearAllPoints()
-        cell:SetPoint("TOPLEFT", PAD + (col - 1) * (COL_W + GAP), -heights[col])
-        cell:SetSize(COL_W, LABEL + 10 + h + 8)
-        heights[col] = heights[col] + LABEL + 10 + h + 8 + GAP
+        cell:SetPoint("TOPLEFT", PAD + (col - 1) * (colW + GAP), -heights[col])
+        cell:SetSize(colW, LABEL + 10 + cell.h + 8)
+        heights[col] = heights[col] + LABEL + 10 + cell.h + 8 + GAP
     end
+    self.frame:SetWidth(colW * 2 + PAD * 2 + GAP)
     self.frame:SetHeight(math.max(heights[1], heights[2]) + PAD - GAP)
 end
 

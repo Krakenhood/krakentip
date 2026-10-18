@@ -119,7 +119,7 @@ local function fill(t, defaults)
 end
 
 KT.POSITIONS = { "mouse", "tooltip" }
-KT.STYLES = { "regular", "mid", "minimal", "classic", "wide", "plate", "portrait", "column", "bar", "icons" }
+KT.STYLES = { "regular", "mid", "minimal", "classic", "plate", "portrait", "bar", "icons" }
 
 local DEFAULTS = {
     settings = {
@@ -128,9 +128,11 @@ local DEFAULTS = {
         position = "mouse", -- "mouse": next to the cursor; "tooltip": where the game puts tooltips (Edit Mode moves it)
         scale = 1,
         minimap = { angle = 200, hide = false },
+        dims = {},          -- per look: { w = 1, h = 1 }, its width and height factors
+        bar = { texture = "smooth", color = "reaction" }, -- KT.BarTextures, KT.BarColors
         lines = {
             target = true,  -- who it's attacking
-            difficulty = true,
+            difficulty = false, -- the level's colour says it already
             quests = true,  -- quest progress from the game's tooltip
             friends = true, -- kills together, from Krakenfriends
         },
@@ -171,6 +173,10 @@ local HELP = {
     { "/kt style", "switch to the next look (or /kt style plate, see /kt styles)" },
     { "/kt styles", "list the looks" },
     { "/kt compare", "see every look side by side; hover a unit to fill them" },
+    { "/kt width 1.2", "make this look wider or narrower (0.6 to 1.6)" },
+    { "/kt height 0.8", "make this look taller or lower (0.6 to 1.6)" },
+    { "/kt bar flat", "the bar's texture: smooth, flat, raid, skill" },
+    { "/kt barcolor health", "the bar's colour: reaction, health, gold" },
     { "/kt scale 1.2", "make the card bigger or smaller (0.6 to 1.6)" },
     { "/kt sample", "show or hide a sample card, to try the settings" },
     { "/kt blizzard", "switch between the card and the game's own unit tooltips" },
@@ -178,18 +184,16 @@ local HELP = {
 }
 
 KT.STYLE_LABEL = {
-    regular = "Regular", mid = "Mid", minimal = "Minimal", classic = "Classic", wide = "Wide",
-    plate = "Plate", portrait = "Portrait", column = "Column", bar = "Bar", icons = "Icons",
+    regular = "Regular", mid = "Mid", minimal = "Minimal", classic = "Classic",
+    plate = "Plate", portrait = "Portrait", bar = "Bar", icons = "Icons",
 }
 KT.STYLE_HINT = {
     regular = "The full card: a big bar and a line for each thing.",
     mid = "Name, type and target at a glance, a thin bar.",
-    minimal = "One line: level, name, health, target.",
+    minimal = "Two short lines: name, then bar, type, quest and target.",
     classic = "The game's own tooltip, line by line, in gold.",
-    wide = "A low banner: the name left, the bar right.",
     plate = "Small and centred, like a nameplate.",
     portrait = "Like the target frame, with the unit's face.",
-    column = "Narrow and tall, everything centred.",
     bar = "The health bar is the card, the name on it.",
     icons = "Name and bar, the details as small icons.",
 }
@@ -209,6 +213,40 @@ function KT:SetEnabled(on)
     self.db.settings.enabled = on
     self:Print(on and "Units get the Kraken card." or "Units get the game's own tooltip (/kt blizzard switches back).")
     self:Fire("SETTINGS")
+end
+
+-- This look's width or height factor ("w" or "h"), 0.6 to 1.6.
+function KT:Dim(which, style)
+    local d = self.db.settings.dims[style or self.db.settings.style]
+    return d and d[which] or 1
+end
+
+function KT:SetDim(which, value, style)
+    style = style or self.db.settings.style
+    local dims = self.db.settings.dims
+    dims[style] = dims[style] or {}
+    value = math.floor(math.max(0.6, math.min(1.6, value)) * 10 + 0.5) / 10
+    dims[style][which] = value ~= 1 and value or nil
+    self:Fire("SETTINGS")
+end
+
+-- The bar's texture or colour: `field` "texture" or "color", `key` from
+-- KT.BarTextures or KT.BarColors; nil steps to the next one.
+function KT:SetBar(field, key, step)
+    local list = field == "texture" and self.BarTextures or self.BarColors
+    local bar = self.db.settings.bar
+    local now = 1
+    for i, it in ipairs(list) do if it.key == bar[field] then now = i end end
+    if not key then key = list[(now - 1 + (step or 1)) % #list + 1].key end
+    for _, it in ipairs(list) do
+        if it.key == key then
+            bar[field] = key
+            return self:Fire("SETTINGS")
+        end
+    end
+    local keys = {}
+    for _, it in ipairs(list) do keys[#keys + 1] = it.key end
+    self:Print("Choose one of: " .. table.concat(keys, ", ") .. ".")
 end
 
 -- `style` nil: the next look in line
@@ -240,6 +278,18 @@ local commands = {
         end
     end,
     compare = function() KT.Compare:Toggle() end,
+    width = function(arg)
+        local n = tonumber(arg)
+        if not n then return KT:Printf("Width of this look: %d%%. Use /kt width 0.6 to 1.6.", KT:Dim("w") * 100) end
+        KT:SetDim("w", n)
+    end,
+    height = function(arg)
+        local n = tonumber(arg)
+        if not n then return KT:Printf("Height of this look: %d%%. Use /kt height 0.6 to 1.6.", KT:Dim("h") * 100) end
+        KT:SetDim("h", n)
+    end,
+    bar = function(arg) KT:SetBar("texture", arg ~= "" and arg or nil) end,
+    barcolor = function(arg) KT:SetBar("color", arg ~= "" and arg or nil) end,
     minimap = function()
         local m = KT.db.settings.minimap
         m.hide = not m.hide

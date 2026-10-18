@@ -60,6 +60,12 @@ section("defaults")
 check(S.position == "mouse", "next to the mouse by default")
 check(S.style == "regular", "regular style by default")
 check(S.enabled, "on by default")
+check(S.lines.difficulty == false, "difficulty off by default: the level's colour says it")
+hover("wolf")
+check(rows() == "Targeting: You", "no difficulty line by default: " .. rows())
+UNITS.mouseover = nil
+for _ = 1, 4 do tick(0.1) end
+S.lines.difficulty = true -- the tests below look at it too
 
 section("an enemy: the card, and the game's unit tooltip never shows")
 hover("wolf")
@@ -256,7 +262,7 @@ hover("wolf")
 check(F() == Card.frames.mid and cardShown(), "the mid card")
 check(not Card.frames.regular:IsShown(), "the regular one hidden")
 check(F().name:GetText() == "Timberling Ravager" and F().level:GetText() == 24, "level and name")
-check(F().sub:GetText() == "Beast · Wolf" and F().target:GetText() == "You", "type, target")
+check(F().sub:GetText() == "Beast · Wolf" and F().target:GetText() == "» You", "type, target: " .. tostring(F().target:GetText()))
 check(F().bar.text:GetText() == "62%", "percentage on the thin bar: " .. tostring(F().bar.text:GetText()))
 check(F().quests[1]:GetText() == " - Ravaged Pelt: 3/8" and not (F().quests[2] and F().quests[2]:IsShown()), "objectives only")
 local mw, mh = F():GetWidth(), F():GetHeight()
@@ -270,11 +276,12 @@ section("Minimal")
 SlashCmdList.KRAKENTIP("style minimal")
 hover("wolf")
 check(F() == Card.frames.minimal and cardShown(), "the minimal card")
-check(F():GetHeight() == 22, "one line high")
+check(F():GetHeight() < 45, "two short lines: " .. F():GetHeight())
 check(F().name:GetText() == "Timberling Ravager" and F().tag.text:GetText() == "ELITE", "name, badge")
-check(F().bar.text:GetText() == "62%", "percentage")
+check(F().pct:GetText() == "62%", "percentage")
+check(F().kind:GetText() == "Beast · Wolf", "creature type: " .. tostring(F().kind:GetText()))
 check(F().target:GetText() == "» You" and F().quest:GetText() == "3/8", "target and quest count: " .. tostring(F().target:GetText()) .. " " .. tostring(F().quest:GetText()))
-check(F():GetWidth() > 200, "as wide as its contents: " .. F():GetWidth())
+check(F():GetWidth() > 150 and F():GetWidth() < 300, "narrower than one long line: " .. F():GetWidth())
 leave()
 hover("innkeeper")
 check(not F().target:IsShown() and not F().quest:IsShown() and not F().tag:IsShown(), "nothing extra for an innkeeper")
@@ -284,7 +291,7 @@ check(S.style == "classic", "/kt style goes on to the next look")
 SlashCmdList.KRAKENTIP("regular")
 check(S.style == "regular", "/kt regular picks a look by its name")
 
-section("all ten looks: every kind of unit, no errors, each its own size")
+section("all eight looks: every kind of unit, no errors, each its own size")
 local sizes, distinct = {}, 0
 for _, style in ipairs(KT.STYLES) do
     SlashCmdList.KRAKENTIP("style " .. style)
@@ -301,14 +308,101 @@ for _, style in ipairs(KT.STYLES) do
         leave()
     end
 end
-check(distinct >= 9, distinct .. " different sizes for the wolf")
+check(distinct >= 7, distinct .. " different sizes for the wolf")
+check(#KT.STYLES == 8 and not KT.Layouts.wide and not KT.Layouts.column, "Wide and Column are gone")
+
+section("every look shows the creature type and the quest progress")
+local function texts(f)
+    local out = {}
+    for _, p in ipairs(f.parts) do
+        if p:IsShown() and p.GetText and p:GetText() then out[#out + 1] = tostring(p:GetText()) end
+        if p.text and p:IsShown() and p.text.GetText then out[#out + 1] = tostring(p.text:GetText()) end
+    end
+    return table.concat(out, " | ")
+end
+for _, style in ipairs(KT.STYLES) do
+    SlashCmdList.KRAKENTIP(style)
+    hover("wolf")
+    local all = texts(F())
+    check(all:find("3/8", 1, true), style .. ": quest progress in " .. all)
+    check(all:find("Wolf", 1, true) or all:find("Beast", 1, true), style .. ": creature type in " .. all)
+    check(not all:find("Hard", 1, true) or style == "regular" or style == "classic", style .. ": no difficulty word outside Regular and Classic")
+    leave()
+end
+SlashCmdList.KRAKENTIP("regular")
+
+section("width and height per look")
+hover("wolf")
+local w0, h0 = F():GetWidth(), F():GetHeight()
+leave()
+SlashCmdList.KRAKENTIP("width 0.8")
+SlashCmdList.KRAKENTIP("height 0.7")
+check(S.dims.regular.w == 0.8 and S.dims.regular.h == 0.7, "saved for this look")
+hover("wolf")
+check(F():GetWidth() < w0 and F():GetHeight() < h0, ("smaller: %sx%s from %sx%s"):format(F():GetWidth(), F():GetHeight(), w0, h0))
+check(F().bar._size[1] < 220 and F().bar._size[2] < 16, "the bar follows")
+leave()
+SlashCmdList.KRAKENTIP("mid")
+hover("wolf")
+check(F():GetWidth() == 214, "other looks keep their size")
+leave()
+SlashCmdList.KRAKENTIP("regular")
+SlashCmdList.KRAKENTIP("width 9")
+check(S.dims.regular.w == 1.6, "capped at 160%")
+SlashCmdList.KRAKENTIP("width 1")
+SlashCmdList.KRAKENTIP("height 1")
+check(S.dims.regular.w == nil and S.dims.regular.h == nil, "back to as designed")
+
+section("the bar's texture and colour")
+SlashCmdList.KRAKENTIP("bar flat")
+SlashCmdList.KRAKENTIP("barcolor health")
+check(S.bar.texture == "flat" and S.bar.color == "health", "saved")
+hover("wolf")
+check(F().bar._texture == "flat", "flat texture")
+local c = F().bar._color
+check(c[1] > 0.5 and c[2] > 0.5, "62% health: yellowish " .. table.concat(c, ","))
+leave()
+SlashCmdList.KRAKENTIP("barcolor gold")
+hover("friend")
+check(isColor(F().bar._color, 1, 0.82, 0), "gold")
+leave()
+SlashCmdList.KRAKENTIP("bar")
+check(S.bar.texture == "raid", "/kt bar steps to the next texture")
+SlashCmdList.KRAKENTIP("bar smooth")
+SlashCmdList.KRAKENTIP("barcolor reaction")
+
+section("action targeting: a soft target gets the card at the tooltip spot")
+UNITS.softenemy = UNITS.wolf
+TIP_TOKEN = SECRET
+GameTooltip:SetOwner(UIParent)
+GameTooltip:FillUnit("softenemy")
+check(cardShown() and Card.info.unit == "softenemy", "card for the soft target: " .. tostring(Card.info and Card.info.unit))
+check(not GameTooltip:IsShown(), "the game's tooltip hidden")
+p = F():GetPoint(1)
+check(p == "BOTTOMRIGHT", "at the tooltip spot, not the mouse")
+tick(0.1)
+check(not Card.fading, "stays while you face it")
+UNITS.softenemy = UNITS.boar
+tick(0.1)
+check(Card.fading, "goes when you face another unit")
+tick(0.25)
+UNITS.softenemy = nil
+TIP_TOKEN = nil
+
+section("difficulty off: no word, the level's colour still says it")
+S.lines.difficulty = false
+hover("wolf")
+check(rows() == "Targeting: You", "no Difficulty line: " .. rows())
+check(isColor(F().level._color, 1, 0.5, 0.25), "level in orange (hard)")
+leave()
+S.lines.difficulty = true
 check(#ERRORS == 0, "no errors in any look")
 SlashCmdList.KRAKENTIP("regular")
 
 section("compare: every look side by side")
 SlashCmdList.KRAKENTIP("compare")
 local Cmp = KT.Compare
-check(Cmp.frame:IsShown() and #Cmp.cells == 10, "ten looks")
+check(Cmp.frame:IsShown() and #Cmp.cells == 8, "eight looks")
 check(Cmp.cells[1].card.name:GetText() == "Timberling Ravager", "the sample first")
 check(Cmp.cells[1].label:GetText() == "Regular  (in use)", "the look in use is marked: " .. tostring(Cmp.cells[1].label:GetText()))
 hover("friend")
@@ -316,8 +410,8 @@ check(Cmp.cells[5].card.name:GetText() == "Thalianne", "hovering fills every loo
 leave()
 check(Cmp.cells[2].card.name:GetText() == "Thalianne", "and keeps it after the mouse leaves")
 check(Cmp.cells[2].card.bar.text:GetText() == "89%", "health kept: " .. tostring(Cmp.cells[2].card.bar.text:GetText()))
-Click(Cmp.cells[7])
-check(S.style == "portrait" and Cmp.cells[7].label:GetText() == "Portrait  (in use)", "click a look to use it")
+Click(Cmp.cells[6])
+check(S.style == "portrait" and Cmp.cells[6].label:GetText() == "Portrait  (in use)", "click a look to use it")
 check(Cmp.frame:GetHeight() > 200, "sized to its looks: " .. Cmp.frame:GetHeight())
 Cmp.frame:Hide()
 SlashCmdList.KRAKENTIP("regular")
@@ -339,12 +433,25 @@ SlashCmdList.KRAKENTIP("")
 local O = KT.Options
 check(O.frame:IsShown(), "options open")
 check(O.position.buttons[1]:GetChecked() and not O.position.buttons[2]:GetChecked(), "mouse picked")
-check(O.styleName:GetText() == "Regular  1/10", "regular shown: " .. tostring(O.styleName:GetText()))
+check(O.styleName:GetText() == "Regular  1/8", "regular shown: " .. tostring(O.styleName:GetText()))
 Click(O.styleNext)
-check(S.style == "mid" and O.styleName:GetText() == "Mid  2/10", "> steps to the next look")
+check(S.style == "mid" and O.styleName:GetText() == "Mid  2/8", "> steps to the next look")
 Click(O.stylePrev); Click(O.stylePrev)
 check(S.style == "icons", "< steps back, round the end")
 SlashCmdList.KRAKENTIP("regular")
+Click(O.widthText.minus); Click(O.widthText.minus)
+Click(O.heightText.plus)
+check(S.dims.regular.w == 0.8 and S.dims.regular.h == 1.1, "width and height of this look")
+check(O.widthText:GetText() == "80%" and O.heightText:GetText() == "110%", "shown: " .. O.widthText:GetText() .. " " .. O.heightText:GetText())
+SlashCmdList.KRAKENTIP("mid")
+check(O.widthText:GetText() == "100%", "each look its own")
+SlashCmdList.KRAKENTIP("regular")
+SlashCmdList.KRAKENTIP("width 1"); SlashCmdList.KRAKENTIP("height 1")
+Click(O.textureText.plus)
+check(S.bar.texture == "flat" and O.textureText:GetText() == "Flat", "bar texture")
+Click(O.colorText.minus)
+check(S.bar.color == "gold" and O.colorText:GetText() == "Gold", "bar colour, round the end")
+SlashCmdList.KRAKENTIP("bar smooth"); SlashCmdList.KRAKENTIP("barcolor reaction")
 Click(O.position.buttons[2])
 check(S.position == "tooltip", "radio switches to the tooltip spot")
 Click(O.sampleButton)
@@ -370,7 +477,7 @@ local mm = KrakentipMinimapButton
 check(mm and mm:IsShown(), "there")
 Click(mm, "RightButton")
 check(S.style == "mid", "right-click: next style")
-for _ = 1, 9 do Click(mm, "RightButton") end
+for _ = 1, 7 do Click(mm, "RightButton") end
 check(S.style == "regular", "and round again")
 SHIFT = true
 Click(mm)
