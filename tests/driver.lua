@@ -114,8 +114,22 @@ Card:OnUpdate(0.05)
 check(Card.fading, "fading")
 Card:OnUpdate(0.1); Card:OnUpdate(0.1)
 check(not cardShown(), "card gone after the fade")
-GameTooltip:Hide()
-check(GameTooltip:GetAlpha() == 1, "game tooltip alpha restored on hide")
+check(not GameTooltip:IsShown() and GameTooltip:GetAlpha() == 1, "game tooltip hidden and its alpha restored")
+
+section("hovering your target: the game names it \"target\", the card still lets go at once")
+UNITS.player.target = "wolf"
+UNITS.target = UNITS.wolf
+TIP_TOKEN = "target"
+hover("wolf")
+check(cardShown() and Card.info.unit == "mouseover", "tracked as mouseover: " .. tostring(Card.info and Card.info.unit))
+UNITS.mouseover = nil
+Card:OnUpdate(0.05)
+check(Card.fading and not GameTooltip:IsShown(), "fading, the game's tooltip hidden right away")
+check(GameTooltip:GetAlpha() == 1, "the game's tooltip is back to normal for next time")
+check(cardShown(), "the card finishes its fade")
+Card:OnUpdate(0.1); Card:OnUpdate(0.1)
+check(not cardShown(), "card gone")
+TIP_TOKEN, UNITS.target, UNITS.player.target = nil, nil, nil
 
 section("health updates while hovering")
 hover("wolf")

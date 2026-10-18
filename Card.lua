@@ -381,8 +381,11 @@ function Card:ShowFor(info)
     self.frame:Show()
 end
 
-function Card:Release()
+-- `force` ends a fade that's still running; without it the fade finishes first.
+function Card:Release(force)
     if not self.frame or self.sample then return end
+    if self.fading and not force then return end
+    self.fading = nil
     self.info = nil
     self.frame:Hide()
 end
@@ -424,15 +427,17 @@ function Card:OnUpdate(elapsed)
     local info = self.info
     if not info then return f:Hide() end
 
-    -- the creature went away under the mouse: fade like the game's tooltip does
+    -- the creature went away under the mouse: the card fades quickly, and the
+    -- game's tooltip, which would linger and fade for seconds, goes right away
     if self.fading then
         self.fading = self.fading - elapsed
-        if self.fading <= 0 then return self:Release() end
+        if self.fading <= 0 then return self:Release(true) end
         f:SetAlpha(self.fading / 0.2)
         return
     end
     if info.unit == "mouseover" and not call(UnitExists, "mouseover") then
         self.fading = 0.2
+        if KT.Hook.hidden then pcall(GameTooltip.Hide, GameTooltip) end
         return
     end
 

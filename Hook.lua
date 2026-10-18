@@ -57,10 +57,15 @@ local function questLinesFromText(tip)
     return out
 end
 
+-- The game may name the unit by any token it has ("target" when you hover your
+-- target, a nameplate). Under the mouse we always call it "mouseover", so the
+-- card notices the moment the mouse leaves it.
 local function unitOf(tip)
     local ok, _, unit = pcall(tip.GetUnit, tip)
     unit = ok and clean(unit)
-    if type(unit) ~= "string" and call(UnitExists, "mouseover") then unit = "mouseover" end
+    if call(UnitExists, "mouseover") and (type(unit) ~= "string" or call(UnitIsUnit, unit, "mouseover")) then
+        return "mouseover"
+    end
     return unit
 end
 

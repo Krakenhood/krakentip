@@ -144,7 +144,8 @@ GameTooltip = CreateFrame("GameTooltip", "GameTooltip", UIParent)
 rawset(GameTooltip, "_shown", false)
 rawset(GameTooltip, "_lines", {})
 function GameTooltip:NumLines() return #self._lines end
-function GameTooltip:GetUnit() if self._unit then return UnitName(self._unit), self._unit end end
+-- TIP_TOKEN: the token the game reports, when it names the unit differently ("target")
+function GameTooltip:GetUnit() if self._unit then return UnitName(self._unit), TIP_TOKEN or self._unit end end
 local function clearTip(tip)
     rawset(tip, "_unit", nil)
     rawset(tip, "_lines", {})
