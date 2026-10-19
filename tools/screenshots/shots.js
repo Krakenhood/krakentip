@@ -207,6 +207,22 @@ function pairScene() {
     'A boss gets a skull (its health hidden here, so just the bar). A neutral creature gets a yellow name.');
 }
 
+// a party member somewhere else, and a wolf the whole group needs
+function groupScene() {
+  const G = data.group, Z = 1.35, order = ['regular', 'mid', 'classic', 'portrait', 'minimal', 'icons'];
+  let inner = '', y = 26;
+  inner += `<div class="label" style="left:40px;top:${y}px">Jokke, in your party, in another zone</div>
+    <div class="label" style="left:520px;top:${y}px">A wolf you and Jokke both need</div>`;
+  y += 34;
+  for (const st of order) {
+    const m = cardHTML(G[st].member), w = cardHTML(G[st].wolf);
+    inner += `<div class="t" style="left:40px;top:${y - 2}px;font-size:12px;color:${C.dim}">${esc(data.labels[st])}</div>`;
+    inner += at(40, y + 24, m.html, Z) + at(520, y + 24, w.html, Z);
+    y += Math.max(m.h, w.h) * Z + 54;
+  }
+  return scene(1000, y + 20, inner, "The zone and \"Skinnable\" come from the game's tooltip; each member's quest progress shows under their name.");
+}
+
 // ---------------------------------------------------------------- the options window (Options.lua)
 const OW = 360, OP = 18;
 function optionsHTML(o) {
@@ -273,6 +289,7 @@ const scenes = [
   ['5-card-tooltip-spot', spotScene()],
   ['6-boss-and-neutral', pairScene()],
   ['7-options', optionsScene()],
+  ['8-group', groupScene()],
 ];
 fs.mkdirSync(out, { recursive: true });
 for (const f of fs.readdirSync(out)) if (f.endsWith('.png')) fs.unlinkSync(path.join(out, f));

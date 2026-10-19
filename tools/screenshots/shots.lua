@@ -117,6 +117,23 @@ S.bar = { texture = "smooth", color = "reaction" }
 out.barLabels = {}
 for _, t in ipairs(KT.BarTextures) do out.barLabels["tex_" .. t.key] = t.label end
 for _, c in ipairs(KT.BarColors) do out.barLabels["col_" .. c.key] = c.label end
+-- a party member in another zone, and a wolf both of you have a quest for
+UNITS.party1 = { guid = "Player-1-0000EEEE", name = "Jokke", class = "ROGUE", className = "Rogue", race = "Orc", guild = "Aurora EU",
+    level = 30, player = true, reaction = 5, hp = 640, hpMax = 900, target = "wolf",
+    questLines = { { leftText = "<Aurora EU>" }, { leftText = "Horde" }, { leftText = "Orgrimmar" } } }
+UNITS.wolfGroup = {
+    guid = "Creature-0-1-2-3-4522-000ABD", name = "Timberling Ravager", level = 24, ctype = "Beast", family = "Wolf",
+    cls = "elite", hostile = true, hp = 1116, hpMax = 1800, target = "player",
+    questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 },
+        { leftText = "Jokke", type = 18 }, { leftText = " - Ravaged Pelt: 5/8", type = 8 }, { leftText = "Skinnable" } },
+}
+RAID_CLASS_COLORS.ROGUE = RAID_CLASS_COLORS.ROGUE or { r = 1, g = 0.96, b = 0.41 }
+out.group = {}
+for _, style in ipairs({ "regular", "mid", "classic", "portrait", "minimal", "icons" }) do
+    S.style = style
+    out.group[style] = { member = hover("party1"), wolf = hover("wolfGroup") }
+end
+UNITS.party1 = nil
 S.style = "regular"
 
 -- the options window as it opens, with the sample card

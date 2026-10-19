@@ -50,6 +50,8 @@ The **health bar** has a texture (Smooth, Flat, Raid, Skill bar) and a colour: f
 
 The card keeps itself up to date while you hover: health, who it's attacking, dead or tagged.
 
+![A party member in another zone, and a wolf the group needs](assets/screenshots/8-group.png)
+
 ## Where it shows
 
 Two choices, in the options (`/kt`) or by command:
