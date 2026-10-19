@@ -278,9 +278,18 @@ function UnitIsTapDenied(u) local x = U(u); return x and x.tapDenied or false en
 function UnitIsDeadOrGhost(u) local x = U(u); return x and x.dead or false end
 function UnitHealth(u) local x = U(u); return x and x.hp or 0 end
 function UnitHealthMax(u) local x = U(u); return x and x.hpMax or 0 end
+-- the percentage, as the game hands it out: hidden when the health is
+function UnitHealthPercent(u)
+    local x = U(u)
+    if not x then return nil end
+    if rawequal(x.hp, SECRET) then return SECRET end
+    return 100 * x.hp / x.hpMax
+end
 function UnitRace(u) local x = U(u); return x and x.race end
 function GetGuildInfo(u) local x = U(u); return x and x.guild end
 LEVEL = "Level"
+FACTION_HORDE, FACTION_ALLIANCE, PVP = "Horde", "Alliance", "PvP"
+function UnitFactionGroup(u) local x = U(u); if x and x.faction then return x.faction, x.faction end end
 function UnitIsUnit(a, b)
     local x, y = U(a), U(b)
     return x ~= nil and y ~= nil and x.guid == y.guid

@@ -146,7 +146,7 @@ hover("boss")
 check(cardShown(), "card shown")
 check(F().skull:IsShown() and not F().level:IsShown(), "skull instead of a level")
 check(rawequal(F().bar:GetValue(), SECRET), "the bar still gets the secret value")
-check(F().bar.text:GetText() == "", "no numbers when they're secret")
+check(F().bar.text:GetText() == "<secret>", "hidden numbers: the game writes the percentage itself")
 check(rowText(1) == "Difficulty: Deadly", "deadly: " .. tostring(rowText(1)))
 leave()
 
@@ -410,6 +410,10 @@ check(Cmp.cells[5].card.name:GetText() == "Thalianne", "hovering fills every loo
 leave()
 check(Cmp.cells[2].card.name:GetText() == "Thalianne", "and keeps it after the mouse leaves")
 check(Cmp.cells[2].card.bar.text:GetText() == "89%", "health kept: " .. tostring(Cmp.cells[2].card.bar.text:GetText()))
+hover("boss")
+leave()
+local reg = Cmp.cells[1].card
+check(reg.name:GetText() == "Edwin VanCleef" and reg.bar.text:GetText() == "<secret>", "a unit with hidden health keeps its percentage in Compare: " .. tostring(reg.bar.text:GetText()))
 Click(Cmp.cells[6])
 check(S.style == "portrait" and Cmp.cells[6].label:GetText() == "Portrait  (in use)", "click a look to use it")
 check(Cmp.frame:GetHeight() > 200, "sized to its looks: " .. Cmp.frame:GetHeight())
@@ -531,6 +535,74 @@ CreateFontFamily = keep
 local count = 0
 for _ in pairs(FONT_FAMILIES) do count = count + 1 end
 check(count < 40, count .. " font families, one per size and outline")
+
+section("a party member elsewhere: the zone line from the game's tooltip")
+UNITS.party1 = { guid = "Player-1-0000EEEE", name = "Jokke", class = "ROGUE", className = "Rogue", race = "Orc", guild = "Aurora EU", level = 30, player = true, reaction = 5, hp = 900, hpMax = 900,
+    questLines = { { leftText = "<Aurora EU>" }, { leftText = "Horde" }, { leftText = "Orgrimmar" } } }
+SlashCmdList.KRAKENTIP("regular")
+hover("party1")
+local others = {}
+for _, o in ipairs(F().others) do if o:IsShown() then others[#others + 1] = o:GetText() end end
+check(table.concat(others, ",") == "Orgrimmar", "only the zone comes over, not the guild or faction again: " .. table.concat(others, ","))
+leave()
+SlashCmdList.KRAKENTIP("classic")
+hover("party1")
+local classic = {}
+for _, l in ipairs(F().lines) do if l:IsShown() then classic[#classic + 1] = l:GetText() end end
+check(table.concat(classic, "|"):find("Orgrimmar", 1, true), "Classic shows it too: " .. table.concat(classic, "|"))
+leave()
+S.lines.other = false
+SlashCmdList.KRAKENTIP("regular")
+hover("party1")
+check(not F().others[1] or not F().others[1]:IsShown(), "and it can be turned off")
+leave()
+S.lines.other = true
+
+section("your group's quest progress, under each member's name")
+UNITS.party1.questLines = nil
+UNITS.party1.name = "Jokke"
+UNITS.wolf.questLines = {
+    { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } },
+    { leftText = " - Ravaged Pelt: 3/8", type = 8 },
+    { leftText = "Jokke", type = 18 },
+    { leftText = " - Ravaged Pelt: 5/8", type = 8 },
+}
+hover("wolf")
+local q = {}
+for _, fs in ipairs(F().quests) do if fs:IsShown() then q[#q + 1] = fs:GetText() end end
+check(table.concat(q, "|") == "Ravaged Pelts| - Ravaged Pelt: 3/8|Jokke| - Ravaged Pelt: 5/8", "every member's lines, as the game shows them: " .. table.concat(q, "|"))
+check(isColor(F().quests[3]._color, 0.78, 0.72, 0.60), "the member's name dim")
+check(Card.info.quests[4][4] == "Jokke", "their objective knows it's theirs")
+leave()
+SlashCmdList.KRAKENTIP("minimal")
+hover("wolf")
+check(F().quest:GetText() == "3/8", "your own count first on the small looks")
+leave()
+UNITS.wolf.questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = "Jokke", type = 18 }, { leftText = " - Ravaged Pelt: 5/8", type = 8 } }
+hover("wolf")
+check(F().quest:GetText() == "Jokke 5/8", "a member's count when you have none: " .. tostring(F().quest:GetText()))
+leave()
+SlashCmdList.KRAKENTIP("mid")
+hover("wolf")
+check(F().quests[1]:GetText() == "Jokke: Ravaged Pelt: 5/8", "Mid names whose it is: " .. tostring(F().quests[1]:GetText()))
+leave()
+USE_TOOLTIP_DATA = false
+UNITS.wolf.questLines = {
+    { leftText = "Ravaged Pelts", color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8" },
+    { leftText = "Jokke" }, { leftText = " - Ravaged Pelt: 5/8" },
+}
+SlashCmdList.KRAKENTIP("regular")
+hover("wolf")
+q = {}
+for _, fs in ipairs(F().quests) do if fs:IsShown() then q[#q + 1] = fs:GetText() end end
+check(table.concat(q, "|") == "Ravaged Pelts| - Ravaged Pelt: 3/8|Jokke| - Ravaged Pelt: 5/8", "read from the text too, the name known as a group member: " .. table.concat(q, "|"))
+local others2 = {}
+for _, o in ipairs(F().others) do if o:IsShown() then others2[#others2 + 1] = o:GetText() end end
+check(#others2 == 0, "and the quest lines aren't repeated as other lines: " .. table.concat(others2, ","))
+leave()
+USE_TOOLTIP_DATA = true
+UNITS.wolf.questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 } }
+UNITS.party1 = nil
 
 section("errors")
 check(#ERRORS == 0, #ERRORS .. " errors raised")

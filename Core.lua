@@ -135,6 +135,7 @@ local DEFAULTS = {
             difficulty = false, -- the level's colour says it already
             quests = true,  -- quest progress from the game's tooltip
             friends = true, -- kills together, from Krakenfriends
+            other = true,   -- the game's other lines: a party member's zone, "Skinnable"
         },
         window = {},
     },

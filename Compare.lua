@@ -112,6 +112,9 @@ function Compare:Fill()
     for _, cell in ipairs(self.cells) do
         local now = cell.style == s.style
         cell.label:SetText(KT.STYLE_LABEL[cell.style] .. (now and "  (in use)" or ""))
+        -- the description ends in "..." before the next column
+        local lw = cell.label:GetStringWidth()
+        cell.hint:SetWidth(colW - 4 - 8 - ((type(lw) == "number" and lw) or 80) - 4)
         cell.label:SetTextColor(Wg.rgb(now and T.gold or T.dim))
         local col = heights[1] <= heights[2] and 1 or 2
         cell:ClearAllPoints()
@@ -131,6 +134,8 @@ function Compare:Take(info)
     for k, v in pairs(info) do copy[k] = v end
     if info.unit then
         copy.hp, copy.hpMax = raw(UnitHealth, info.unit), raw(UnitHealthMax, info.unit)
+        -- hidden health: the percentage the game writes, kept for when the unit's gone
+        if UnitHealthPercent then copy.hpPct = raw(UnitHealthPercent, info.unit, true, CurveConstants and CurveConstants.ScaleTo100) end
         copy.portraitUnit = info.unit
         copy.unit = nil
     end

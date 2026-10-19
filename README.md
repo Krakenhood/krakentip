@@ -44,7 +44,8 @@ The **health bar** has a texture (Smooth, Flat, Raid, Skill bar) and a colour: f
 - **Targeting**: who it's attacking. "You" in red when it's coming for you, players in their class colour.
 - **Difficulty in words** (off by default, since the level's colour says it): Trivial, Easy, Even, Hard, Very hard or Deadly, on the Regular and Classic cards.
 - **Guild** for players.
-- **Quest progress**: the quest lines the game's tooltip shows for this creature.
+- **Quest progress**: the quest lines the game's tooltip shows for this creature, yours and your group's, each member's under their name. The small styles show your count ("3/8"), or a member's ("Jokke 5/8") when you have none.
+- **Other lines from the game**: what else the game's tooltip says, like a party member's zone when they're somewhere else, "Skinnable" or "AFK". On Regular, Mid, Classic and Portrait.
 - **Killed with your friend**: with [Krakenfriends](https://github.com/Krakenhood/krakenfriends) loaded, how often you two have killed this creature. It only shows when Krakenfriends is loaded and you've killed it together; the tick in the options turns it off altogether.
 
 The card keeps itself up to date while you hover: health, who it's attacking, dead or tagged.
@@ -69,6 +70,10 @@ Two choices, in the options (`/kt`) or by command:
 **Show a sample card** puts a pretend Timberling Ravager on screen, so you can try the position, the style, the size and the lines without a creature around. It stays until you click again or close the options.
 
 ![The options with the sample card](assets/screenshots/7-options.png)
+
+## Still open
+
+Tighter versions of Minimal and Icons are being designed: see [docs/design-notes.md](docs/design-notes.md).
 
 ## How it works
 

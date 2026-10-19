@@ -254,23 +254,46 @@ function Layouts.Rows(info, lines)
 end
 
 -- "3/8" from the first quest objective that counts something
+-- Your count, or when you have none, the first group member's ("Jokke 5/8").
 function Layouts.QuestCount(info, lines)
     if not lines.quests then return nil end
+    local theirs
     for _, q in ipairs(info.quests or {}) do
         local t = clean(q[1])
-        local n = type(t) == "string" and not q[2] and t:match("(%d+%s*/%s*%d+)")
-        if n then return (n:gsub("%s", "")) end
+        local n = type(t) == "string" and not q[2] and not q[3] and t:match("(%d+%s*/%s*%d+)")
+        if n then
+            n = n:gsub("%s", "")
+            if not q[4] then return n end
+            theirs = theirs or (q[4] .. " " .. n)
+        end
     end
+    return theirs
 end
 
--- the quest objectives (titles left out), for the looks with little room
+-- the quest objectives (titles left out), for the looks with little room;
+-- a group member's with their name in front ("Jokke: Ravaged Pelt: 5/8")
 local function objectives(info, lines)
     local out = {}
     if not lines.quests then return out end
     for _, q in ipairs(info.quests or {}) do
-        if not q[2] then out[#out + 1] = q[1] end
+        if not q[2] and not q[3] then
+            local text = q[1]
+            local plain = q[4] and clean(text)
+            if plain then text = q[4] .. ": " .. plain:gsub("^%s*%-%s*", "") end
+            out[#out + 1] = text
+        end
     end
     return out
+end
+
+-- how a quest line looks: titles in gold, a group member's name dim, objectives white
+local function questColor(q)
+    return q[2] and T.gold or q[3] and T.dim or T.text
+end
+
+-- the game's other lines (a party member's zone, "Skinnable"), when wanted
+local function otherLines(info, lines)
+    return lines.other ~= false and info.other or {}
 end
 
 local function difficultyText(info, lines)
@@ -348,10 +371,10 @@ function Layouts.SetHealth(b, info, s, short)
         return
     end
     -- secret: let the game write the percentage it won't show us
-    if unit and UnitHealthPercent then
-        local p = raw(UnitHealthPercent, unit, true, CurveConstants and CurveConstants.ScaleTo100)
-        if p ~= nil and pcall(t.SetFormattedText, t, "%.0f%%", p) then return end
-    end
+    -- (a copy of a card, as in Compare, keeps the percentage it was given)
+    local p = info.hpPct
+    if unit and UnitHealthPercent then p = raw(UnitHealthPercent, unit, true, CurveConstants and CurveConstants.ScaleTo100) end
+    if p ~= nil and pcall(t.SetFormattedText, t, "%.0f%%", p) then return end
     t:SetText("")
 end
 
@@ -393,6 +416,7 @@ function R.Create(f)
     f.rows = pool(function() return { label = text(f, 11, T.dim), value = text(f, 11),
         Show = function(r) r.label:Show(); r.value:Show() end, Hide = function(r) r.label:Hide(); r.value:Hide() end,
         IsShown = function(r) return r.label:IsShown() end } end)
+    f.others = pool(function() return text(f, 11, T.dim) end)
     f.sep = solid(f, T.line)
     f.quests = pool(function() return text(f, 11) end)
 end
@@ -433,6 +457,17 @@ function R.Fill(f, info, s, wk, hk)
     end
     f.rows:HideFrom(#rows + 1)
 
+    -- the game's other lines: a party member's zone, "Skinnable"
+    local others = otherLines(info, s.lines)
+    for i, o in ipairs(others) do
+        local fs = f.others:Get(i)
+        at(f, fs, "TOPLEFT", PAD, y + 1)
+        fs:SetWidth(W - PAD * 2)
+        setText(fs, o)
+        y = y + rowH
+    end
+    f.others:HideFrom(#others + 1)
+
     -- quest progress, as the game words it
     local quests = s.lines.quests and info.quests or {}
     if #quests > 0 then
@@ -449,7 +484,7 @@ function R.Fill(f, info, s, wk, hk)
         at(f, fs, "TOPLEFT", PAD, y)
         fs:SetWidth(W - PAD * 2)
         setText(fs, q[1])
-        fs:SetTextColor(Wg.rgb(q[2] and T.gold or T.text))
+        fs:SetTextColor(Wg.rgb(questColor(q)))
         y = y + V(14, hk, 12)
     end
     f.quests:HideFrom(#quests + 1)
@@ -511,6 +546,7 @@ function M.Fill(f, info, s, wk, hk)
     y = y + bh + V(4, hk, 2)
 
     local list = objectives(info, s.lines)
+    for _, o in ipairs(otherLines(info, s.lines)) do list[#list + 1] = o end
     for i, q in ipairs(list) do
         local fs = f.quests:Get(i)
         at(f, fs, "TOPLEFT", PAD, y)
@@ -635,7 +671,8 @@ function CL.Fill(f, info, s, wk, hk)
     if diff then add(diff, info.difficultyColor) end
     if s.lines.target and info.target then add("Target: " .. tostring(info.target), info.targetColor) end
     if s.lines.friends and info.together then add(("Killed with %s: %d"):format(info.partner or "your friend", info.together), T.teal) end
-    for _, q in ipairs(s.lines.quests and info.quests or {}) do add(q[1], q[2] and T.gold or T.text) end
+    for _, o in ipairs(otherLines(info, s.lines)) do add(o, T.text) end
+    for _, q in ipairs(s.lines.quests and info.quests or {}) do add(q[1], questColor(q)) end
 
     at(f, f.name, "TOPLEFT", PAD, 7)
     f.name:SetWidth(0)
@@ -752,10 +789,15 @@ function PO.Create(f)
     end
     f.face = part(f, face, "face")
     f.face._size = PO.FACE
+    -- the ring sits in the texture's top left: its hole is about 0.4 of the
+    -- texture wide, centred at 0.31 across and 0.28 down (as the minimap
+    -- button uses it), so the texture is sized for the hole to fit the face
     local edge = f:CreateTexture(nil, "OVERLAY")
     edge:SetTexture(KT.Files.ring)
-    edge:SetSize(PO.FACE * 1.75, PO.FACE * 1.75)
-    edge:SetPoint("TOPLEFT", face, "TOPLEFT", -4, 4)
+    local size = PO.FACE / 0.4
+    edge:SetSize(size, size)
+    edge:SetPoint("TOPLEFT", face, "TOPLEFT", -(size * 0.31 - PO.FACE / 2), size * 0.28 - PO.FACE / 2)
+    f.faceRing = edge
     -- the level in a small ring on the face's lower left, as on the game's frames
     f.ring = ring(f, 22)
     f.ring:SetFrameLevel((f:GetFrameLevel() or 1) + 3)
@@ -826,6 +868,7 @@ function PO.Fill(f, info, s, wk, hk)
     y = y + 13 + V(3, hk, 2)
 
     local list = objectives(info, s.lines)
+    for _, o in ipairs(otherLines(info, s.lines)) do list[#list + 1] = o end
     for i, q in ipairs(list) do
         local fs = f.quests:Get(i)
         at(f, fs, "TOPLEFT", X, y)

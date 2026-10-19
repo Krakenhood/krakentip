@@ -65,7 +65,7 @@ end
 -- `extra` carries what only the game's tooltip knows: quest lines, an NPC's title.
 function Card:Gather(unit, extra)
     extra = extra or {}
-    local info = { unit = unit, quests = extra.quests, subtitle = extra.subtitle }
+    local info = { unit = unit, quests = extra.quests, subtitle = extra.subtitle, other = extra.other }
     info.guid = call(UnitGUID, unit)
     info.name = raw(UnitName, unit)
     info.level = call(UnitLevel, unit)

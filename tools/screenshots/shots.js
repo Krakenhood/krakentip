@@ -245,7 +245,7 @@ function optionsHTML(o) {
   s += stepper('Colour', OP + 2, y, o.color, 110, true); y += 32;
   s += heading('On the card', y); y += 24;
   o.checks.forEach(([label, on], i) => {
-    if (i === 4) { y += 6; s += heading('The card', y); y += 24; }
+    if (label === 'Use the Kraken card') { y += 6; s += heading('The card', y); y += 24; }
     s += `<div class="check ${on ? 'on' : ''}" style="left:${OP}px;top:${y + 2}px"></div>
       <div class="t" style="left:${OP + 22}px;top:${y + 3}px;font-size:12px">${esc(label)}</div>`;
     y += 24;

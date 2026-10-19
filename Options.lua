@@ -165,7 +165,8 @@ function Options:Create()
     end
     check("Who it's attacking", "target", "\"Targeting: You\" in red when it's coming for you.")
     check("How hard it is, in words", "difficulty", "Trivial, Easy, Even, Hard, Very hard or Deadly, on the Regular and Classic cards. Every look colours the level that way anyway.")
-    check("Quest progress", "quests", "The quest lines the game's tooltip shows for this creature.")
+    check("Quest progress", "quests", "The quest lines the game's tooltip shows for this creature, yours and your group's.")
+    check("Other lines from the game", "other", "What else the game's tooltip says: a party member's zone when they're elsewhere, \"Skinnable\", \"AFK\". On Regular, Mid, Classic and Portrait.")
     self.friends = check("Kills with your Krakenfriends partner", "friends", "How often you and your Krakenfriends partner have killed this creature. Only shows when Krakenfriends is loaded and you two have killed it.")
     y = y + 6
 

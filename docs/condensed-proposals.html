@@ -1,0 +1,68 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Carlito','Liberation Sans',sans-serif;color:#fff;background:#14110d}
+.page{width:1100px;padding:24px 30px;background:radial-gradient(ellipse at 40% 110%,#5a3a1e 0%,#2a1d12 45%,#120d09 100%)}
+h2{font-family:'Caladea',serif;color:#ffd100;font-size:22px;margin:6px 0 4px}
+.note{color:#c7b899;font-size:13px;margin-bottom:14px}
+.row{display:flex;gap:28px;margin-bottom:22px;align-items:flex-start}
+.col{width:330px}
+.lab{color:#ffd100;font-size:14px;margin-bottom:6px}
+.sub{color:#a89c84;font-size:12px;margin-top:6px;line-height:1.35}
+.card{display:inline-block;position:relative;background:rgba(26,23,20,.95);border:2px solid rgba(255,209,0,.85);border-radius:3px;box-shadow:inset 0 0 0 1px #000,0 4px 12px rgba(0,0,0,.6);padding:5px 7px;transform:scale(1.5);transform-origin:top left;margin-bottom:var(--mb,40px)}
+.you{border-color:#ff3b2f;box-shadow:inset 0 0 0 1px #000,0 0 8px 2px rgba(255,40,30,.55)}
+.l{display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;text-shadow:1px -1px 0 rgba(0,0,0,.8)}
+.l+.l{margin-top:4px}
+.o{text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;font-weight:700}
+.bar{position:relative;height:8px;background:rgba(0,0,0,.65);box-shadow:0 0 0 1px rgba(255,209,0,.5)}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(0,0,0,.25)),#c71f17}
+.bar.g i{background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(0,0,0,.25)),#29a833}
+.bar b{position:absolute;inset:0;text-align:center;font-size:9px;line-height:8px}
+.q{color:#ffd100}.d{color:#c7b899}.r{color:#ff5c4d}
+.ico{display:inline-block;width:12px;height:12px;border-radius:2px;background:#1a1612;box-shadow:0 0 0 1px #6b5a2e;font-size:9px;line-height:12px;text-align:center}
+</style></head><body><div class="page">
+
+<h2>Minimal, condensed</h2>
+<div class="note">Same wolf: "Timberling Ravager", level 24 elite, 62% health, attacking you, quest 3/8. Below it, a player attacking someone else.</div>
+<div class="row">
+ <div class="col"><div class="lab">A: two lines, words</div>
+  <div class="card you" style="--mb:44px"><div class="l"><span class="o" style="color:#ff8040">24+</span><span style="color:#ff4a3a">T. Ravager</span></div>
+   <div class="l"><div class="bar" style="width:62px"><i style="width:62%"></i></div><span class="o" style="font-size:10px">62%</span><span class="r o" style="font-size:10px">» YOU</span><span class="q">3/8</span></div></div><br>
+  <div class="card"><div class="l"><span class="o" style="color:#ffd100">30</span><span style="color:#ff7c0a">Judge</span></div>
+   <div class="l"><div class="bar g" style="width:62px"><i style="width:100%"></i></div><span class="o" style="font-size:10px">100%</span><span class="d" style="font-size:11px">» Jokke</span></div></div>
+  <div class="sub">Elite as "+" after the level. Long names shortened to fit: earlier words become initials, the last word stays ("T. Ravager", "G. Plainstrider"). Attacking you: red "YOU" and the frame glows red.</div></div>
+
+ <div class="col"><div class="lab">B: one line, bar under the name</div>
+  <div class="card you" style="--mb:44px"><div class="l"><span class="o" style="color:#ff8040">24+</span><span style="color:#ff4a3a">Timberling Ravager</span><span class="q">3/8</span><span class="r o" style="font-size:10px">» YOU</span></div>
+   <div class="l"><div class="bar" style="width:100%;height:5px;flex:1"><i style="width:62%"></i></div><span class="o" style="font-size:9px">62%</span></div></div><br>
+  <div class="card"><div class="l"><span class="o" style="color:#ffd100">30</span><span style="color:#ff7c0a">Judge</span><span class="d">» Jokke</span></div>
+   <div class="l"><div class="bar g" style="height:5px;flex:1"><i style="width:100%"></i></div><span class="o" style="font-size:9px">100%</span></div></div>
+  <div class="sub">Everything readable on the first line; the bar is a thin strip underneath as wide as the card. Full name when it fits.</div></div>
+
+ <div class="col"><div class="lab">C: the bar carries the name</div>
+  <div class="card you" style="--mb:44px;padding:4px"><div class="l"><span class="o" style="color:#ff8040;width:22px;text-align:center">24+</span><div class="bar" style="width:150px;height:16px"><i style="width:62%"></i><b style="text-align:left;padding-left:4px;line-height:16px;font-size:11px;font-weight:400" class="o">T. Ravager</b><b style="text-align:right;padding-right:4px;line-height:16px;font-size:10px" class="o">62%</b></div></div>
+   <div class="l" style="justify-content:space-between"><span class="q">3/8</span><span class="r o" style="font-size:10px">» YOU</span></div></div><br>
+  <div class="card" style="padding:4px"><div class="l"><span class="o" style="color:#ffd100;width:22px;text-align:center">30</span><div class="bar g" style="width:150px;height:16px"><i style="width:100%"></i><b style="text-align:left;padding-left:4px;line-height:16px;font-size:11px;font-weight:400;color:#ff7c0a" class="o">Judge</b><b style="text-align:right;padding-right:4px;line-height:16px;font-size:10px" class="o">100%</b></div></div>
+   <div class="l" style="justify-content:flex-end"><span class="d">» Jokke</span></div></div>
+  <div class="sub">Closest to a nameplate: one block, quickest to read in a fight.</div></div>
+</div>
+
+<h2>Icons, condensed</h2>
+<div class="note">Only what you act on: name, level, health, who it's attacking, quest. No guild, no type for players.</div>
+<div class="row">
+ <div class="col"><div class="lab">D: icons with values</div>
+  <div class="card you" style="--mb:60px"><div class="l"><span class="o" style="color:#ff8040">24+</span><span style="color:#ff4a3a">Timberling Ravager</span></div>
+   <div class="l"><div class="bar" style="width:150px;height:9px"><i style="width:62%"></i><b class="o">62%</b></div></div>
+   <div class="l"><span class="ico" style="color:#ff5c4d">◉</span><span class="r o" style="font-size:10px">YOU</span><span class="ico" style="color:#ffd100">!</span><span class="q">3/8</span><span class="ico">🐺</span><span class="d">Wolf</span></div></div><br>
+  <div class="card"><div class="l"><span class="o" style="color:#ffd100">30</span><span style="color:#ff7c0a">Judge</span></div>
+   <div class="l"><div class="bar g" style="width:150px;height:9px"><i style="width:100%"></i><b class="o">100%</b></div></div>
+   <div class="l"><span class="ico" style="color:#ccc">◉</span><span class="d">Jokke</span></div></div>
+  <div class="sub">Target symbol: a crosshair (the game's own target marker) instead of the sword. Quest: the game's yellow "!" marker. Creature family icon for creatures.</div></div>
+
+ <div class="col"><div class="lab">E: icons only, numbers as badges</div>
+  <div class="card you" style="--mb:44px"><div class="l"><span class="o" style="color:#ff8040">24+</span><span style="color:#ff4a3a">Timberling Ravager</span><span class="ico" style="color:#ffd100;position:relative">!</span><span class="q o" style="font-size:10px;margin-left:-4px">3/8</span></div>
+   <div class="l"><div class="bar" style="width:120px;height:9px"><i style="width:62%"></i><b class="o">62%</b></div><span class="ico" style="color:#ff5c4d">◉</span><span class="r o" style="font-size:10px">YOU</span></div></div><br>
+  <div class="card"><div class="l"><span class="o" style="color:#ffd100">30</span><span style="color:#ff7c0a">Judge</span></div>
+   <div class="l"><div class="bar g" style="width:120px;height:9px"><i style="width:100%"></i><b class="o">100%</b></div><span class="ico">◉</span><span class="d">Jokke</span></div></div>
+  <div class="sub">Two lines: quest right of the name, target right of the bar. As compact as Minimal, with the icons.</div></div>
+</div>
+</div></body></html>
