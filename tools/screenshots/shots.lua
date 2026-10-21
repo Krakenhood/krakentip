@@ -129,7 +129,7 @@ UNITS.wolfGroup = {
 }
 RAID_CLASS_COLORS.ROGUE = RAID_CLASS_COLORS.ROGUE or { r = 1, g = 0.96, b = 0.41 }
 out.group = {}
-for _, style in ipairs({ "regular", "mid", "classic", "portrait", "minimal", "icons" }) do
+for _, style in ipairs(KT.STYLES) do
     S.style = style
     out.group[style] = { member = hover("party1"), wolf = hover("wolfGroup") }
 end
@@ -147,7 +147,7 @@ local function radio(g)
 end
 local checks = {}
 for _, cb in ipairs(O.checks) do checks[#checks + 1] = { cb.label:GetText(), cb:GetChecked() and true or false } end
-out.options = { checks = checks, position = radio(O.position), styleName = O.styleName:GetText(), styleHint = O.styleHint:GetText(),
+out.options = { checks = checks, fieldCount = #KT.FIELDS, fieldsHeading = O.fieldsHeading:GetText(), position = radio(O.position), styleName = O.styleName:GetText(), styleHint = O.styleHint:GetText(),
     width = O.widthText:GetText(), height = O.heightText:GetText(), texture = O.textureText:GetText(), color = O.colorText:GetText(),
     scale = O.scaleText:GetText(), sample = O.sampleButton:GetText(), frameHeight = O.frame:GetHeight() }
 out.sample = snap()

@@ -53,6 +53,8 @@ local function rows()
     for i = 1, 8 do local t = rowText(i); if t then out[#out + 1] = t end end
     return table.concat(out, " | ")
 end
+-- a field on or off in every look
+local function field(key, on) for _, st in ipairs(KT.STYLES) do KT:SetField(key, on, st) end end
 local function isColor(c, r, g, b) return math.abs(c[1] - r) < 0.01 and math.abs(c[2] - g) < 0.01 and math.abs(c[3] - b) < 0.01 end
 
 --------------------------------------------------------------------------------
@@ -60,12 +62,13 @@ section("defaults")
 check(S.position == "mouse", "next to the mouse by default")
 check(S.style == "regular", "regular style by default")
 check(S.enabled, "on by default")
-check(S.lines.difficulty == false, "difficulty off by default: the level's colour says it")
+check(KT:Fields("regular").difficulty == false and KT:Fields("icons").difficulty == false, "difficulty off by default: the level's colour says it")
+check(KT:Fields("regular").guild and not KT:Fields("minimal").guild, "the guild on the full looks, not on the small ones")
 hover("wolf")
 check(rows() == "Targeting: You", "no difficulty line by default: " .. rows())
 UNITS.mouseover = nil
 for _ = 1, 4 do tick(0.1) end
-S.lines.difficulty = true -- the tests below look at it too
+KT:SetField("difficulty", true, "regular"); KT:SetField("difficulty", true, "classic") -- the tests below look at it
 
 section("an enemy: the card, and the game's unit tooltip never shows")
 hover("wolf")
@@ -234,11 +237,11 @@ SlashCmdList.KRAKENTIP("mouse")
 check(S.position == "mouse", "back to the mouse")
 
 section("lines can be turned off")
-S.lines.target, S.lines.quests = false, false
+field("target", false); field("quests", false); field("group", false)
 hover("wolf")
 check(rows() == "Difficulty: Hard (+3)", "no target row")
 check(not F().quests[1]:IsShown(), "no quest lines")
-S.lines.target, S.lines.quests = true, true
+field("target", true); field("quests", true); field("group", true)
 leave()
 
 section("Krakenfriends: kills together")
@@ -390,12 +393,12 @@ UNITS.softenemy = nil
 TIP_TOKEN = nil
 
 section("difficulty off: no word, the level's colour still says it")
-S.lines.difficulty = false
+KT:SetField("difficulty", false, "regular"); KT:SetField("difficulty", false, "classic")
 hover("wolf")
 check(rows() == "Targeting: You", "no Difficulty line: " .. rows())
 check(isColor(F().level._color, 1, 0.5, 0.25), "level in orange (hard)")
 leave()
-S.lines.difficulty = true
+KT:SetField("difficulty", true, "regular"); KT:SetField("difficulty", true, "classic")
 check(#ERRORS == 0, "no errors in any look")
 SlashCmdList.KRAKENTIP("regular")
 
@@ -551,12 +554,12 @@ local classic = {}
 for _, l in ipairs(F().lines) do if l:IsShown() then classic[#classic + 1] = l:GetText() end end
 check(table.concat(classic, "|"):find("Orgrimmar", 1, true), "Classic shows it too: " .. table.concat(classic, "|"))
 leave()
-S.lines.other = false
+field("other", false)
 SlashCmdList.KRAKENTIP("regular")
 hover("party1")
 check(not F().others[1] or not F().others[1]:IsShown(), "and it can be turned off")
 leave()
-S.lines.other = true
+field("other", true)
 
 section("your group's quest progress, under each member's name")
 UNITS.party1.questLines = nil
@@ -580,7 +583,7 @@ check(F().quest:GetText() == "3/8", "your own count first on the small looks")
 leave()
 UNITS.wolf.questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = "Jokke", type = 18 }, { leftText = " - Ravaged Pelt: 5/8", type = 8 } }
 hover("wolf")
-check(F().quest:GetText() == "Jokke 5/8", "a member's count when you have none: " .. tostring(F().quest:GetText()))
+check(not F().quest:IsShown() and F().extra:IsShown() and F().extra:GetText():find("Jokke 5/8", 1, true), "Minimal: your count's place empty, Jokke's on the third line: " .. tostring(F().extra:GetText()))
 leave()
 SlashCmdList.KRAKENTIP("mid")
 hover("wolf")
@@ -601,6 +604,83 @@ for _, o in ipairs(F().others) do if o:IsShown() then others2[#others2 + 1] = o:
 check(#others2 == 0, "and the quest lines aren't repeated as other lines: " .. table.concat(others2, ","))
 leave()
 USE_TOOLTIP_DATA = true
+UNITS.wolf.questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 } }
+UNITS.party1 = nil
+
+section("what's on the card: each look its own fields")
+UNITS.party1 = { guid = "Player-1-0000EEEE", name = "Jokke", class = "ROGUE", className = "Rogue", race = "Orc", guild = "Aurora EU", level = 30, player = true, reaction = 5, hp = 900, hpMax = 900,
+    questLines = { { leftText = "<Aurora EU>" }, { leftText = "Horde" }, { leftText = "Orgrimmar" } } }
+UNITS.wolf.questLines = {
+    { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 },
+    { leftText = "Jokke", type = 18 }, { leftText = " - Ravaged Pelt: 5/8", type = 8 },
+}
+local function shownText(f)
+    local out = {}
+    for _, p in ipairs(f.parts) do
+        if p:IsShown() and p.GetText and p:GetText() then out[#out + 1] = tostring(p:GetText()) end
+        if p:IsShown() and p.text and p.text.GetText and p.text:GetText() then out[#out + 1] = tostring(p.text:GetText()) end
+    end
+    return table.concat(out, " | ")
+end
+for _, style in ipairs(KT.STYLES) do
+    SlashCmdList.KRAKENTIP(style)
+    hover("party1")
+    check(shownText(F()):find("Orgrimmar", 1, true), style .. ": the zone, by default: " .. shownText(F()))
+    leave()
+    hover("wolf")
+    local all = shownText(F())
+    check(all:find("5/8", 1, true), style .. ": the group's progress, by default: " .. all)
+    leave()
+end
+SlashCmdList.KRAKENTIP("minimal")
+SlashCmdList.KRAKENTIP("show group")
+check(KT:Fields("minimal").group == false and KT:Fields("regular").group == true, "/kt show group: only this look")
+hover("wolf")
+check(not shownText(F()):find("5/8", 1, true), "Minimal without the group's: " .. shownText(F()))
+leave()
+SlashCmdList.KRAKENTIP("show type")
+SlashCmdList.KRAKENTIP("show health")
+hover("wolf")
+check(not F().kind:IsShown() and not F().pct:IsShown(), "type and health numbers off")
+check(F().bar:IsShown(), "the bar stays")
+leave()
+SlashCmdList.KRAKENTIP("show guild")
+hover("party1")
+check(shownText(F()):find("<Aurora EU>", 1, true), "the guild, switched on for Minimal")
+leave()
+KT:ResetFields("minimal")
+check(KT:Fields("minimal").group and not KT:Fields("minimal").guild, "Defaults puts the look back")
+SlashCmdList.KRAKENTIP("regular")
+KT:SetField("rank", false)
+hover("wolf")
+check(not F().tag:IsShown(), "no badge when rank is off")
+leave()
+KT:ResetFields("regular")
+KT:SetField("difficulty", true, "regular"); KT:SetField("difficulty", true, "classic")
+
+section("the options show this look's fields")
+SlashCmdList.KRAKENTIP("")
+local Op = KT.Options
+check(#Op.checks == #KT.FIELDS + 1, "a tick for every field, and Use the Kraken card")
+check(Op.fieldsHeading:GetText() == "On the card: Regular", "named after the look: " .. tostring(Op.fieldsHeading:GetText()))
+SlashCmdList.KRAKENTIP("minimal")
+check(Op.fieldsHeading:GetText() == "On the card: Minimal" and not Op.fieldChecks.guild:GetChecked(), "switching the look switches the ticks")
+Click(Op.fieldChecks.guild)
+check(KT:Fields("minimal").guild and not KT:Fields("icons").guild, "a tick changes this look only")
+Click(Op.defaultsButton)
+check(not KT:Fields("minimal").guild, "Defaults")
+Op.frame:Hide()
+SlashCmdList.KRAKENTIP("regular")
+
+section("old settings: what was switched off stays off in every look")
+KrakentipDB.settings.lines = { target = false, quests = true, other = false, difficulty = false, friends = true }
+KrakentipDB.settings.fields = {}
+KT:LoadDB()
+check(KT:Fields("minimal").target == false and KT:Fields("regular").other == false and KT:Fields("icons").quests, "moved over")
+check(KrakentipDB.settings.lines == nil, "and the old ticks gone")
+KrakentipDB.settings.fields = {}
+KT:SetField("difficulty", true, "regular"); KT:SetField("difficulty", true, "classic")
+S = KrakentipDB.settings
 UNITS.wolf.questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 } }
 UNITS.party1 = nil
 

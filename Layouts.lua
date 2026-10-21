@@ -98,8 +98,8 @@ local function placeBar(f, b, x, y, w, h)
 end
 
 -- the text on the bar, centred, as big as the bar allows (none on a thin bar)
-local function barText(f, b, x, y, w, h)
-    if h < 8 then return b.text:Hide() end
+local function barText(f, b, x, y, w, h, lines)
+    if h < 8 or (lines and not lines.health) then return b.text:Hide() end
     local size = min(11, max(8, h - 3))
     Wg.SetFont(b.text, size, "OUTLINE")
     b.text._size = size
@@ -218,64 +218,103 @@ function Layouts.NameColor(info)
     return KT.Reaction[info.reaction] or KT.Reaction.hostile
 end
 
--- "Beast · Wolf", "Innkeeper · Humanoid", "Night Elf · Mage"
-function Layouts.Kind(info)
+-- Every field on: for callers that don't pass a look's fields.
+local ALL = setmetatable({}, { __index = function() return true end })
+
+-- "Beast · Wolf", "Innkeeper · Humanoid", "Night Elf · Mage": what it is, as
+-- far as the look's fields ask (type, NPC title)
+function Layouts.Kind(info, lines)
+    lines = lines or ALL
     local parts = {}
     local function add(s) if type(s) == "string" and s ~= "" then parts[#parts + 1] = s end end
     if info.isPlayer then
-        add(info.race); add(info.className)
+        if lines.type then add(info.race); add(info.className) end
     else
-        add(info.subtitle); add(info.ctype)
-        if info.family ~= info.ctype then add(info.family) end
+        if lines.title then add(info.subtitle) end
+        if lines.type then
+            add(info.ctype)
+            if info.family ~= info.ctype then add(info.family) end
+        end
     end
     return table.concat(parts, " · ")
 end
 
--- "Elite", "Rare elite", "Boss"
-local function rank(info)
-    local cls = KT.Classification[info.cls]
+-- "Elite", "Rare elite", "Boss"; and the gold badge's word ("ELITE")
+local function rank(info, lines)
+    local cls = (lines or ALL).rank and KT.Classification[info.cls]
     return cls and (cls:sub(1, 1) .. cls:sub(2):lower()) or nil
+end
+function Layouts.RankTag(info, lines)
+    return (lines or ALL).rank and KT.Classification[info.cls] or nil
+end
+
+local function difficultyText(info, lines)
+    if not (lines.difficulty and info.difficulty) then return nil end
+    if info.diff and info.diff ~= 0 then return ("%s (%+d)"):format(info.difficulty, info.diff) end
+    return info.difficulty
 end
 
 -- The lines of the Regular card, as { label, value, colour }.
 function Layouts.Rows(info, lines)
     local rows = {}
     if lines.target and info.target then rows[#rows + 1] = { "Targeting", info.target, info.targetColor } end
-    if lines.difficulty and info.difficulty then
-        local word = info.difficulty
-        if info.diff and info.diff ~= 0 then word = ("%s (%+d)"):format(word, info.diff) end
-        rows[#rows + 1] = { "Difficulty", word, info.difficultyColor }
-    end
-    if info.guild then rows[#rows + 1] = { "Guild", "<" .. info.guild .. ">", T.text } end
+    local diff = difficultyText(info, lines)
+    if diff then rows[#rows + 1] = { "Difficulty", diff, info.difficultyColor } end
+    if lines.guild and info.guild then rows[#rows + 1] = { "Guild", "<" .. info.guild .. ">", T.text } end
     if lines.friends and info.together then
         rows[#rows + 1] = { info.partner and ("Killed with " .. info.partner) or "Killed together", info.together, T.teal }
     end
     return rows
 end
 
--- "3/8" from the first quest objective that counts something
--- Your count, or when you have none, the first group member's ("Jokke 5/8").
-function Layouts.QuestCount(info, lines)
-    if not lines.quests then return nil end
-    local theirs
+-- Quest lines as the game words them ({ text, isTitle, isPlayer, owner }):
+-- yours when `quests` is on, your group's when `group` is; a quest's title
+-- only when something under it shows.
+function Layouts.QuestLines(info, lines)
+    local out, title = {}, nil
     for _, q in ipairs(info.quests or {}) do
-        local t = clean(q[1])
-        local n = type(t) == "string" and not q[2] and not q[3] and t:match("(%d+%s*/%s*%d+)")
-        if n then
-            n = n:gsub("%s", "")
-            if not q[4] then return n end
-            theirs = theirs or (q[4] .. " " .. n)
+        if q[2] then
+            title = q
+        elseif (q[3] or q[4]) and lines.group or not (q[3] or q[4]) and lines.quests then
+            if title then out[#out + 1] = title; title = nil end
+            out[#out + 1] = q
         end
     end
-    return theirs
+    return out
+end
+
+local function count(q)
+    local t = clean(q[1])
+    local n = type(t) == "string" and t:match("(%d+%s*/%s*%d+)")
+    return n and (n:gsub("%s", "")) or nil
+end
+
+-- your count, "3/8"
+function Layouts.QuestCount(info, lines)
+    if not lines.quests then return nil end
+    for _, q in ipairs(info.quests or {}) do
+        if not (q[2] or q[3] or q[4]) and count(q) then return count(q) end
+    end
+end
+
+-- each group member's count, { "Jokke 5/8", ... }
+function Layouts.GroupCounts(info, lines)
+    local out, seen = {}, {}
+    if not lines.group then return out end
+    for _, q in ipairs(info.quests or {}) do
+        if q[4] and not seen[q[4]] and count(q) then
+            seen[q[4]] = true
+            out[#out + 1] = q[4] .. " " .. count(q)
+        end
+    end
+    return out
 end
 
 -- the quest objectives (titles left out), for the looks with little room;
 -- a group member's with their name in front ("Jokke: Ravaged Pelt: 5/8")
 local function objectives(info, lines)
     local out = {}
-    if not lines.quests then return out end
-    for _, q in ipairs(info.quests or {}) do
+    for _, q in ipairs(Layouts.QuestLines(info, lines)) do
         if not q[2] and not q[3] then
             local text = q[1]
             local plain = q[4] and clean(text)
@@ -293,13 +332,31 @@ end
 
 -- the game's other lines (a party member's zone, "Skinnable"), when wanted
 local function otherLines(info, lines)
-    return lines.other ~= false and info.other or {}
+    return lines.other and info.other or {}
 end
 
-local function difficultyText(info, lines)
-    if not (lines.difficulty and info.difficulty) then return nil end
-    if info.diff and info.diff ~= 0 then return ("%s (%+d)"):format(info.difficulty, info.diff) end
-    return info.difficulty
+-- What a small look has no place for on its own lines, coloured, for an
+-- extra line: your group's counts, the zone and other lines, the guild,
+-- the difficulty, the kills together. `skip` leaves some out ({ guild = true }).
+function Layouts.Extras(info, lines, skip)
+    skip = skip or {}
+    local out = {}
+    if not skip.group then
+        for _, c in ipairs(Layouts.GroupCounts(info, lines)) do out[#out + 1] = paint(c, T.gold) end
+    end
+    if not skip.other then
+        for _, o in ipairs(otherLines(info, lines)) do
+            local plain = clean(o)
+            if plain then out[#out + 1] = paint(plain, T.text) end
+        end
+    end
+    if not skip.guild and lines.guild and info.guild then out[#out + 1] = paint("<" .. info.guild .. ">", T.dim) end
+    local diff = not skip.difficulty and difficultyText(info, lines)
+    if diff then out[#out + 1] = paint(diff, info.difficultyColor or T.text) end
+    if not skip.friends and lines.friends and info.together then
+        out[#out + 1] = paint(("%d with %s"):format(info.together, info.partner or "your friend"), T.teal)
+    end
+    return out
 end
 
 local function targetText(info, lines)
@@ -396,7 +453,9 @@ end
 function Layouts.Fill(f, key, info, s)
     local L = Layouts[key]
     local wk, hk = dims(s, key)
-    return L.Fill(f, info, s, wk, hk)
+    -- the look reads its own fields as s.lines; everything else as it is
+    local view = setmetatable({ lines = KT:Fields(key) }, { __index = s })
+    return L.Fill(f, info, view, wk, hk)
 end
 
 --------------------------------------------------------------------------------
@@ -433,14 +492,14 @@ function R.Fill(f, info, s, wk, hk)
     setText(f.name, info.name)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
     at(f, f.sub, "TOPLEFT", 45, 27)
-    local kind = Layouts.Kind(info)
+    local kind = Layouts.Kind(info, s.lines)
     f.sub:SetText(kind)
-    f.tag:Set(KT.Classification[info.cls])
+    f.tag:Set(Layouts.RankTag(info, s.lines))
     at(f, f.tag, "TOPLEFT", kind ~= "" and 45 + width(f.sub, 60) + 5 or 45, 27)
 
     local y, bh = 48, V(16, hk, 6)
     placeBar(f, f.bar, PAD, y, W - PAD * 2, bh)
-    barText(f, f.bar, PAD, y, W - PAD * 2, bh)
+    barText(f, f.bar, PAD, y, W - PAD * 2, bh, s.lines)
     Layouts.SetHealth(f.bar, info, s)
     y = y + bh + V(5, hk, 3)
 
@@ -469,7 +528,7 @@ function R.Fill(f, info, s, wk, hk)
     f.others:HideFrom(#others + 1)
 
     -- quest progress, as the game words it
-    local quests = s.lines.quests and info.quests or {}
+    local quests = Layouts.QuestLines(info, s.lines)
     if #quests > 0 then
         y = y + V(4, hk, 2)
         at(f, f.sep, "TOPLEFT", PAD, y)
@@ -515,7 +574,7 @@ function M.Fill(f, info, s, wk, hk)
     local isSkull = setLevel(f, info)
     at(f, f.level, "TOPLEFT", PAD, 7)
     at(f, f.skull, "TOPLEFT", PAD, 6)
-    f.tag:Set(KT.Classification[info.cls])
+    f.tag:Set(Layouts.RankTag(info, s.lines))
     at(f, f.tag, "TOPRIGHT", W - PAD, 7)
     local nameX = isSkull and PAD + 17 or PAD + width(f.level, 14) + 5
     at(f, f.name, "TOPLEFT", nameX, 5)
@@ -524,8 +583,8 @@ function M.Fill(f, info, s, wk, hk)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
 
     local y = 5 + V(20, hk, 17)
-    local kind = Layouts.Kind(info)
-    if info.guild then kind = (kind ~= "" and kind .. " · " or "") .. "<" .. info.guild .. ">" end
+    local kind = Layouts.Kind(info, s.lines)
+    if s.lines.guild and info.guild then kind = (kind ~= "" and kind .. " · " or "") .. "<" .. info.guild .. ">" end
     at(f, f.sub, "TOPLEFT", PAD, y)
     f.sub:SetText(kind)
     local target = targetText(info, s.lines)
@@ -541,12 +600,12 @@ function M.Fill(f, info, s, wk, hk)
     y = y + V(15, hk, 13)
     local bh = V(9, hk, 4)
     placeBar(f, f.bar, PAD, y, W - PAD * 2, bh)
-    barText(f, f.bar, PAD, y, W - PAD * 2, bh)
+    barText(f, f.bar, PAD, y, W - PAD * 2, bh, s.lines)
     Layouts.SetHealth(f.bar, info, s, true)
     y = y + bh + V(4, hk, 2)
 
     local list = objectives(info, s.lines)
-    for _, o in ipairs(otherLines(info, s.lines)) do list[#list + 1] = o end
+    for _, e in ipairs(Layouts.Extras(info, s.lines, { group = true, guild = true })) do list[#list + 1] = e end
     for i, q in ipairs(list) do
         local fs = f.quests:Get(i)
         at(f, fs, "TOPLEFT", PAD, y)
@@ -560,7 +619,8 @@ end
 
 --------------------------------------------------------------------------------
 -- Minimal: two short lines. Level, name, badge; then the bar, type, quest
--- count and target.
+-- count and target. A third line only when there's more to say: your group's
+-- counts, the zone, the guild, the kills together.
 --------------------------------------------------------------------------------
 
 local N = { frame = "thin", BAR_W = 60 }
@@ -576,6 +636,7 @@ function N.Create(f)
     f.kind = text(f, 10, T.dim)
     f.quest = text(f, 11, T.gold)
     f.target = text(f, 11)
+    f.extra = text(f, 10)
 end
 
 function N.Fill(f, info, s, wk, hk)
@@ -594,7 +655,7 @@ function N.Fill(f, info, s, wk, hk)
     setText(f.name, info.name)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
     x = x + width(f.name, 110)
-    f.tag:Set(KT.Classification[info.cls])
+    f.tag:Set(Layouts.RankTag(info, s.lines))
     if f.tag:IsShown() then
         at(f, f.tag, "TOPLEFT", x + GAP, y + 2)
         x = x + GAP + f.tag:GetWidth()
@@ -609,10 +670,15 @@ function N.Fill(f, info, s, wk, hk)
     Layouts.SetHealth(f.bar, info, s, true)
     Wg.SetFont(f.pct, 10, "OUTLINE")
     f.pct._size = 10
-    at(f, f.pct, "TOPLEFT", x + bw + 4, y)
-    f.pct:Show()
-    x = x + bw + 4 + max(width(f.pct, 24), 24) + GAP
-    local kind = Layouts.Kind(info)
+    if s.lines.health then
+        at(f, f.pct, "TOPLEFT", x + bw + 4, y)
+        f.pct:Show()
+        x = x + bw + 4 + max(width(f.pct, 24), 24) + GAP
+    else
+        f.pct:Hide()
+        x = x + bw + GAP
+    end
+    local kind = Layouts.Kind(info, s.lines)
     if kind ~= "" then
         at(f, f.kind, "TOPLEFT", x, y + 1)
         f.kind:SetText(kind)
@@ -640,8 +706,23 @@ function N.Fill(f, info, s, wk, hk)
     else
         f.target:Hide()
     end
-    local w2 = x - GAP + PAD
-    return max(w1, w2), y + 12 + 5
+    local W = max(w1, x - GAP + PAD)
+
+    -- third line, when there's more
+    local extras = Layouts.Extras(info, s.lines)
+    if #extras == 0 then
+        f.extra:Hide()
+        return W, y + 12 + 5
+    end
+    y = y + V(15, hk, 13)
+    at(f, f.extra, "TOPLEFT", PAD, y)
+    f.extra:SetWidth(0)
+    f.extra:SetText(table.concat(extras, "  "))
+    f.extra:Show()
+    -- as wide as it needs, up to a limit; past that it ends in "..."
+    W = max(W, min(floor(260 * wk + 0.5), width(f.extra, 120) + PAD * 2))
+    f.extra:SetWidth(W - PAD * 2)
+    return W, y + 12 + 5
 end
 
 --------------------------------------------------------------------------------
@@ -661,18 +742,18 @@ function CL.Fill(f, info, s, wk, hk)
     local PAD = 8
     local lines = {}
     local function add(t, color) lines[#lines + 1] = { t, color or T.text } end
-    if info.isPlayer and info.guild then add("<" .. info.guild .. ">") end
+    if info.isPlayer and s.lines.guild and info.guild then add("<" .. info.guild .. ">") end
     local level = (info.level and info.level > 0) and tostring(info.level) or "??"
-    local what = Layouts.Kind(info)
+    local what = Layouts.Kind(info, s.lines)
     if info.isPlayer then what = what:gsub(" · ", " ") end
-    local r = rank(info)
-    add(("Level %s %s%s"):format(level, what, r and (" (" .. r .. ")") or ""))
+    local r = rank(info, s.lines)
+    add(("Level %s%s%s"):format(level, what ~= "" and " " .. what or "", r and (" (" .. r .. ")") or ""))
     local diff = difficultyText(info, s.lines)
     if diff then add(diff, info.difficultyColor) end
     if s.lines.target and info.target then add("Target: " .. tostring(info.target), info.targetColor) end
     if s.lines.friends and info.together then add(("Killed with %s: %d"):format(info.partner or "your friend", info.together), T.teal) end
     for _, o in ipairs(otherLines(info, s.lines)) do add(o, T.text) end
-    for _, q in ipairs(s.lines.quests and info.quests or {}) do add(q[1], questColor(q)) end
+    for _, q in ipairs(Layouts.QuestLines(info, s.lines)) do add(q[1], questColor(q)) end
 
     at(f, f.name, "TOPLEFT", PAD, 7)
     f.name:SetWidth(0)
@@ -697,7 +778,7 @@ function CL.Fill(f, info, s, wk, hk)
     local bh = V(8, hk, 4)
     y = y + V(3, hk, 2)
     placeBar(f, f.bar, PAD, y, W - PAD * 2, bh)
-    barText(f, f.bar, PAD, y, W - PAD * 2, bh)
+    barText(f, f.bar, PAD, y, W - PAD * 2, bh, s.lines)
     Layouts.SetHealth(f.bar, info, s, true)
     return W, y + bh + PAD
 end
@@ -715,12 +796,13 @@ function PL.Create(f)
     f.skull = skull(f, 11)
     f.bar = bar(f)
     f.info = text(f, 10)
+    f.extra = text(f, 10)
 end
 
 function PL.Fill(f, info, s, wk, hk)
     local W = max(130, min(340, floor(PL.WIDTH * wk + 0.5)))
     local name = info.name
-    if info.cls == "rare" or info.cls == "rareelite" then
+    if s.lines.rank and (info.cls == "rare" or info.cls == "rareelite") then
         local plain = clean(info.name)
         if plain then name = plain .. " (Rare)" end
     end
@@ -732,11 +814,11 @@ function PL.Fill(f, info, s, wk, hk)
 
     local y, bh = 5 + V(17, hk, 15), V(10, hk, 5)
     placeBar(f, f.bar, 30, y, W - 38, bh)
-    barText(f, f.bar, 30, y, W - 38, bh)
+    barText(f, f.bar, 30, y, W - 38, bh, s.lines)
     Layouts.SetHealth(f.bar, info, s, true)
     setLevel(f, info)
     -- the classic elite mark: a plus after the level
-    if f.level:IsShown() and (info.cls == "elite" or info.cls == "rareelite" or info.cls == "worldboss") then
+    if s.lines.rank and f.level:IsShown() and (info.cls == "elite" or info.cls == "rareelite" or info.cls == "worldboss") then
         f.level:SetText(info.level .. "+")
     end
     at(f, f.level, "TOPRIGHT", 26, y + floor((bh - 10) / 2))
@@ -745,22 +827,25 @@ function PL.Fill(f, info, s, wk, hk)
 
     -- what it is, its quest count and its target, on one centred line
     local bits = {}
-    local kind = Layouts.Kind(info)
+    local kind = Layouts.Kind(info, s.lines)
     if kind ~= "" then bits[#bits + 1] = paint(kind, T.dim) end
     local count = Layouts.QuestCount(info, s.lines)
     if count then bits[#bits + 1] = paint(count, T.gold) end
     local target = targetText(info, s.lines)
     if target then bits[#bits + 1] = paint(target, info.targetColor or T.text) end
-    if #bits == 0 then
-        f.info:Hide()
-        return W, y + 2
+    local function line(fs, list)
+        if #list == 0 then return fs:Hide() end
+        at(f, fs, "TOP", W / 2, y)
+        fs:SetWidth(W - 8)
+        fs:SetJustifyH("CENTER")
+        fs:SetText(table.concat(list, "  "))
+        fs:Show()
+        y = y + 13
     end
-    at(f, f.info, "TOP", W / 2, y)
-    f.info:SetWidth(W - 8)
-    f.info:SetJustifyH("CENTER")
-    f.info:SetText(table.concat(bits, "  "))
-    f.info:Show()
-    return W, y + 13 + 4
+    line(f.info, bits)
+    -- and what else there is (group counts, zone, guild), centred under it
+    line(f.extra, Layouts.Extras(info, s.lines))
+    return W, y + ((f.info:IsShown() or f.extra:IsShown()) and 4 or 2)
 end
 
 --------------------------------------------------------------------------------
@@ -847,12 +932,12 @@ function PO.Fill(f, info, s, wk, hk)
 
     local y, bh = 28, V(13, hk, 6)
     placeBar(f, f.bar, X, y, W - X - 8, bh)
-    barText(f, f.bar, X, y, W - X - 8, bh)
+    barText(f, f.bar, X, y, W - X - 8, bh, s.lines)
     Layouts.SetHealth(f.bar, info, s)
     y = y + bh + V(5, hk, 3)
 
-    local kind = Layouts.Kind(info)
-    local r = rank(info)
+    local kind = Layouts.Kind(info, s.lines)
+    local r = rank(info, s.lines)
     if r then kind = (kind ~= "" and kind .. " · " or "") .. r end
     at(f, f.sub, "TOPLEFT", X, y)
     f.sub:SetText(kind)
@@ -868,7 +953,7 @@ function PO.Fill(f, info, s, wk, hk)
     y = y + 13 + V(3, hk, 2)
 
     local list = objectives(info, s.lines)
-    for _, o in ipairs(otherLines(info, s.lines)) do list[#list + 1] = o end
+    for _, e in ipairs(Layouts.Extras(info, s.lines, { group = true })) do list[#list + 1] = e end
     for i, q in ipairs(list) do
         local fs = f.quests:Get(i)
         at(f, fs, "TOPLEFT", X, y)
@@ -895,6 +980,7 @@ function BA.Create(f)
     f.name = text(f, 12, nil, { outline = "OUTLINE", top = true })
     f.info = text(f, 10, T.dim)
     f.target = text(f, 10)
+    f.extra = text(f, 10)
 end
 
 function BA.Fill(f, info, s, wk, hk)
@@ -913,7 +999,7 @@ function BA.Fill(f, info, s, wk, hk)
     Wg.SetFont(f.bar.text, size, "OUTLINE")
     f.bar.text._size = size
     at(f, f.bar.text, "TOPRIGHT", W - 7, 3 + floor((bh - 2 - size) / 2))
-    f.bar.text:Show()
+    f.bar.text:SetShown(s.lines.health)
     local nsize = min(12, max(9, bh - 8))
     Wg.SetFont(f.name, nsize, "OUTLINE")
     f.name._size = nsize
@@ -925,13 +1011,13 @@ function BA.Fill(f, info, s, wk, hk)
 
     -- below: what it is, its rank, quest count and guild; the target on the right
     local bits = {}
-    local kind = Layouts.Kind(info)
+    local kind = Layouts.Kind(info, s.lines)
     if kind ~= "" then bits[#bits + 1] = kind end
-    local r = rank(info)
+    local r = rank(info, s.lines)
     if r then bits[#bits + 1] = paint(r, T.gold) end
     local count = Layouts.QuestCount(info, s.lines)
     if count then bits[#bits + 1] = paint(count, T.gold) end
-    if info.guild then bits[#bits + 1] = "<" .. info.guild .. ">" end
+    if s.lines.guild and info.guild then bits[#bits + 1] = "<" .. info.guild .. ">" end
     local target = targetText(info, s.lines)
     local y = bh + 6
     if target then
@@ -942,15 +1028,28 @@ function BA.Fill(f, info, s, wk, hk)
     else
         f.target:Hide()
     end
-    if #bits == 0 and not target then
+    local extras = Layouts.Extras(info, s.lines, { guild = true })
+    if #bits == 0 and not target and #extras == 0 then
         f.info:Hide()
+        f.extra:Hide()
         return W, bh + 4
     end
     at(f, f.info, "TOPLEFT", 6, y)
     f.info:SetWidth(W - 12 - (target and width(f.target, 40) + 8 or 0))
     f.info:SetText(table.concat(bits, " · "))
-    f.info:Show()
-    return W, y + 13 + 3
+    f.info:SetShown(#bits > 0)
+    y = y + 13
+    -- what else there is (group counts, zone, kills together) on a line of its own
+    if #extras > 0 then
+        at(f, f.extra, "TOPLEFT", 6, y + 1)
+        f.extra:SetWidth(W - 12)
+        f.extra:SetText(table.concat(extras, "  "))
+        f.extra:Show()
+        y = y + 14
+    else
+        f.extra:Hide()
+    end
+    return W, y + 3
 end
 
 --------------------------------------------------------------------------------
@@ -963,8 +1062,10 @@ Layouts.icons = IC
 local ICON = {
     target = { "Interface\\CURSOR\\Attack" },
     quest = { "Interface\\GossipFrame\\ActiveQuestIcon", "Interface\\GossipFrame\\AvailableQuestIcon" },
+    other = { "Interface\\Icons\\INV_Misc_Map_01", "Interface\\Icons\\INV_Misc_Note_01" },
     friends = { "Interface\\Icons\\Achievement_Reputation_01", "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01" },
     guild = { "Interface\\Icons\\INV_Shirt_GuildTabard_01", "Interface\\Icons\\INV_Misc_Note_01" },
+    difficulty = { "Interface\\Icons\\Ability_DualWield", "Interface\\Icons\\INV_Sword_04" },
 }
 
 function IC.Create(f)
@@ -973,16 +1074,12 @@ function IC.Create(f)
     f.name = text(f, 13)
     f.tag = tag(f, 8)
     f.bar = bar(f)
-    f.chips = {}
-    for _, key in ipairs({ "target", "kind", "quest", "friends", "guild" }) do
-        local c = chip(f)
-        f.chips[#f.chips + 1] = c
-        f.chips[key] = c
-    end
+    f.chips = pool(function() return chip(f) end)
 end
 
 function IC.Fill(f, info, s, wk, hk)
-    local PAD = 7
+    local PAD, GAP = 7, 8
+    local lines = s.lines
     local x = PAD
     if setLevel(f, info) then
         at(f, f.skull, "TOPLEFT", x, 6)
@@ -996,26 +1093,39 @@ function IC.Fill(f, info, s, wk, hk)
     setText(f.name, info.name)
     f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
     x = x + width(f.name, 110)
-    f.tag:Set(KT.Classification[info.cls])
+    f.tag:Set(Layouts.RankTag(info, lines))
     if f.tag:IsShown() then
         at(f, f.tag, "TOPLEFT", x + 5, 8)
         x = x + 5 + f.tag:GetWidth()
     end
     local W = max(floor(IC.MIN * wk + 0.5), x + PAD)
 
-    local c = f.chips
-    local kindIcon = info.isPlayer and "INV_Misc_Head_Human_01" or KIND_ICON[info.ctype] or "INV_Misc_QuestionMark"
-    c.target:Set(Wg.FirstFile(ICON.target), targetText(info, s.lines) and tostring(info.target) or nil, info.targetColor)
-    local kind = info.isPlayer and info.className or info.family or info.ctype
-    c.kind:Set("Interface\\Icons\\" .. kindIcon, kind, T.dim)
-    c.quest:Set(Wg.FirstFile(ICON.quest), Layouts.QuestCount(info, s.lines), T.gold)
-    c.friends:Set(Wg.FirstFile(ICON.friends), s.lines.friends and info.together or nil, T.teal)
-    c.guild:Set(Wg.FirstFile(ICON.guild), info.guild and ("<" .. info.guild .. ">") or nil, T.text)
-    local cx, any = PAD, false
-    for _, chipFrame in ipairs(c) do
-        if chipFrame:IsShown() then any = true; cx = cx + chipFrame:GetWidth() + 8 end
+    -- the chips: { icon, value, colour }, in this order
+    local list = {}
+    local function add(icon, value, color) if value ~= nil then list[#list + 1] = { icon, value, color } end end
+    if lines.target and info.target then add(Wg.FirstFile(ICON.target), tostring(info.target), info.targetColor) end
+    local kind = Layouts.Kind(info, lines)
+    if kind ~= "" then
+        local icon = info.isPlayer and "INV_Misc_Head_Human_01" or KIND_ICON[info.ctype] or "INV_Misc_QuestionMark"
+        -- the shortest word for it: the family, the class, or what Kind says
+        local short = info.isPlayer and lines.type and info.className or lines.type and (info.family or info.ctype) or kind
+        add("Interface\\Icons\\" .. icon, short, T.dim)
     end
-    W = max(W, cx - 8 + PAD)
+    add(Wg.FirstFile(ICON.quest), Layouts.QuestCount(info, lines), T.gold)
+    for _, c in ipairs(Layouts.GroupCounts(info, lines)) do add(Wg.FirstFile(ICON.quest), c, T.dim) end
+    for _, o in ipairs(otherLines(info, lines)) do add(Wg.FirstFile(ICON.other), o, T.text) end
+    if lines.friends and info.together then add(Wg.FirstFile(ICON.friends), info.together, T.teal) end
+    if lines.guild and info.guild then add(Wg.FirstFile(ICON.guild), "<" .. info.guild .. ">", T.text) end
+    local diff = difficultyText(info, lines)
+    if diff then add(Wg.FirstFile(ICON.difficulty), diff, info.difficultyColor) end
+    for i, c in ipairs(list) do f.chips:Get(i):Set(c[1], c[2], c[3]) end
+    f.chips:HideFrom(#list + 1)
+
+    -- one row of chips if they fit a card up to MAX wide, more rows if not
+    local MAX = floor(300 * wk + 0.5)
+    local rowW = PAD
+    for i = 1, #list do rowW = rowW + f.chips[i]:GetWidth() + GAP end
+    W = max(W, min(MAX, rowW - GAP + PAD))
 
     local y, bh = 6 + V(19, hk, 16), V(8, hk, 4)
     local bw = W - PAD * 2 - 34
@@ -1024,15 +1134,19 @@ function IC.Fill(f, info, s, wk, hk)
     Wg.SetFont(f.bar.text, 9, "OUTLINE")
     f.bar.text._size = 9
     at(f, f.bar.text, "TOPLEFT", PAD + bw + 4, y + floor((bh - 9) / 2))
-    f.bar.text:Show()
+    f.bar.text:SetShown(lines.health)
     y = y + bh + V(6, hk, 4)
+    if #list == 0 then return W, y + 2 end
 
-    cx = PAD
-    for _, chipFrame in ipairs(c) do
-        if chipFrame:IsShown() then
-            at(f, chipFrame, "TOPLEFT", cx, y)
-            cx = cx + chipFrame:GetWidth() + 8
+    local cx = PAD
+    for i = 1, #list do
+        local c = f.chips[i]
+        if cx > PAD and cx + c:GetWidth() > W - PAD then
+            cx = PAD
+            y = y + 16
         end
+        at(f, c, "TOPLEFT", cx, y)
+        cx = cx + c:GetWidth() + GAP
     end
-    return W, any and y + 14 + 5 or y + 2
+    return W, y + 14 + 5
 end

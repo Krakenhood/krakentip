@@ -209,7 +209,7 @@ function pairScene() {
 
 // a party member somewhere else, and a wolf the whole group needs
 function groupScene() {
-  const G = data.group, Z = 1.35, order = ['regular', 'mid', 'classic', 'portrait', 'minimal', 'icons'];
+  const G = data.group, Z = 1.35, order = data.styles;
   let inner = '', y = 26;
   inner += `<div class="label" style="left:40px;top:${y}px">Jokke, in your party, in another zone</div>
     <div class="label" style="left:520px;top:${y}px">A wolf you and Jokke both need</div>`;
@@ -259,13 +259,22 @@ function optionsHTML(o) {
   s += heading('Health bar', y); y += 26;
   s += stepper('Texture', OP + 2, y, o.texture, 110, true); y += 26;
   s += stepper('Colour', OP + 2, y, o.color, 110, true); y += 32;
-  s += heading('On the card', y); y += 24;
-  o.checks.forEach(([label, on], i) => {
-    if (label === 'Use the Kraken card') { y += 6; s += heading('The card', y); y += 24; }
+  s += heading(esc(o.fieldsHeading), y) + `<div class="t" style="right:${OP - 6}px;top:${y + 1}px;font-size:11px;color:${C.dim}">Defaults</div>`;
+  y += 24;
+  // this look's fields in two columns, as Options.lua lays them out
+  const half = Math.ceil(o.fieldCount / 2);
+  o.checks.slice(0, o.fieldCount).forEach(([label, on], i) => {
+    const col = i < half ? 0 : 1, row = i < half ? i : i - half, yy = y + row * 22;
+    s += `<div class="check ${on ? 'on' : ''}" style="left:${OP + col * 168}px;top:${yy + 2}px"></div>
+      <div class="t" style="left:${OP + 22 + col * 168}px;top:${yy + 3}px;font-size:12px">${esc(label)}</div>`;
+  });
+  y += half * 22 + 8;
+  s += heading('The card', y); y += 24;
+  for (const [label, on] of o.checks.slice(o.fieldCount)) {
     s += `<div class="check ${on ? 'on' : ''}" style="left:${OP}px;top:${y + 2}px"></div>
       <div class="t" style="left:${OP + 22}px;top:${y + 3}px;font-size:12px">${esc(label)}</div>`;
     y += 24;
-  });
+  }
   s += stepper('Scale', OP + 2, y, o.scale, 44); y += 34;
   s += `<div class="btn" style="left:${OP}px;top:${y}px;width:180px">${esc(o.sample)}</div>
     <div class="t" style="left:${OP + 190}px;top:${y + 5}px;font-size:11px;color:${C.dim}">/kt sample does the same</div>`;

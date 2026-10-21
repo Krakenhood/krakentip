@@ -17,7 +17,7 @@ Creatures and players get a card in the game's own style (gold border, dark ston
 | **Bar** | The health bar is the card, with the name written on it; type, rank, quest count and target below. |
 | **Icons** | Name and bar, then the details as small icons with a value (target, type, quest, kills, guild). |
 
-Every style shows the creature's type and its quest progress.
+Every style can show every field below; you choose which, per style (see **What's on the card**).
 
 **Compare them**: `/kt compare` (or **Compare all** in the options, or shift-click the minimap button) opens a window with all eight side by side. It shows a sample wolf until you hover a unit; then every style shows that unit, and keeps it after the mouse leaves. Click a style to use it.
 
@@ -44,11 +44,18 @@ The **health bar** has a texture (Smooth, Flat, Raid, Skill bar) and a colour: f
 - **Targeting**: who it's attacking. "You" in red when it's coming for you, players in their class colour.
 - **Difficulty in words** (off by default, since the level's colour says it): Trivial, Easy, Even, Hard, Very hard or Deadly, on the Regular and Classic cards.
 - **Guild** for players.
-- **Quest progress**: the quest lines the game's tooltip shows for this creature, yours and your group's, each member's under their name. The small styles show your count ("3/8"), or a member's ("Jokke 5/8") when you have none.
-- **Other lines from the game**: what else the game's tooltip says, like a party member's zone when they're somewhere else, "Skinnable" or "AFK". On Regular, Mid, Classic and Portrait.
+- **Your quest progress**: your objectives for this creature, or your count ("3/8") on the small styles.
+- **Your group's quests**: each group member's progress, under their name, or as "Jokke 5/8" on the small styles.
+- **Zone and other lines**: what else the game's tooltip says, like a party member's zone when they're somewhere else, "Skinnable" or "AFK".
 - **Killed with your friend**: with [Krakenfriends](https://github.com/Krakenhood/krakenfriends) loaded, how often you two have killed this creature. It only shows when Krakenfriends is loaded and you've killed it together; the tick in the options turns it off altogether.
 
 The card keeps itself up to date while you hover: health, who it's attacking, dead or tagged.
+
+## What's on the card
+
+Each style has its own list of what it shows, in the options under **On the card**, with a **Defaults** button to put it back: type (or race and class), NPC title, elite/rare/boss, health numbers, who it's attacking, your quest progress, your group's quests, zone and other lines, guild, difficulty in words, Krakenfriends kills. The name, the level and the bar always show. `/kt show group` switches one field of the style in use.
+
+By default every style shows everything except the difficulty in words (the level's colour says it), and the small styles (Minimal, Plate, Bar, Icons) leave out the guild. Where a small style has no room on its own lines, the extra fields go on a line of their own (Minimal, Plate, Bar) or become more icons (Icons).
 
 ![A party member in another zone, and a wolf the group needs](assets/screenshots/8-group.png)
 
@@ -67,7 +74,7 @@ Two choices, in the options (`/kt`) or by command:
 
 ## Options
 
-`/kt` opens the options window: where the card shows, its style, that style's width and height, the health bar, the lines and the scale. It's also under Options > AddOns > Krakentip, and the minimap button opens it (click; right-click switches the style, shift-click opens Compare).
+`/kt` opens the options window: where the card shows, its style, that style's width and height, the health bar, what's on the card and the scale. It's also under Options > AddOns > Krakentip, and the minimap button opens it (click; right-click switches the style, shift-click opens Compare).
 
 **Show a sample card** puts a pretend Timberling Ravager on screen, so you can try the position, the style, the size and the lines without a creature around. It stays until you click again or close the options.
 
@@ -95,6 +102,7 @@ The game builds unit tooltips (creatures and players) on their own path, apart f
 | `/kt compare` | All eight styles side by side; hover a unit to fill them |
 | `/kt width 0.8` | This style's width (0.6 to 1.6) |
 | `/kt height 1.2` | This style's height (0.6 to 1.6) |
+| `/kt show group` | Show or hide a field on this style: type, title, rank, health, target, quests, group, other, guild, difficulty, friends |
 | `/kt bar flat` | The bar's texture: smooth, flat, raid, skill (no name: the next one) |
 | `/kt barcolor health` | The bar's colour: reaction, health, gold |
 | `/kt scale 1.2` | Make the card bigger or smaller (0.6 to 1.6) |

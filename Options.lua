@@ -151,29 +151,36 @@ function Options:Create()
     self.colorText = stepper(f, "Colour", PAD + 2, y, 110, function(d) KT:SetBar("color", nil, d) end, true)
     y = y + 32
 
-    -- what
-    heading(f, "On the card", y)
+    -- what this look shows: its own ticks, as its width and height are its own
+    self.fieldsHeading = heading(f, "On the card", y)
+    local defaults = Wg.TextButton(f, "Defaults", 11)
+    defaults:SetPoint("TOPRIGHT", -PAD + 6, -(y - 4))
+    defaults:SetScript("OnClick", function() KT:ResetFields() end)
+    self.defaultsButton = defaults
     y = y + 24
     self.checks = {}
-    local function check(label, key, tooltip, t)
-        t = t or KT.db.settings.lines
-        local cb = Wg.Check(f, label, function() return t[key] end, function(v) t[key] = v end, tooltip)
-        cb:SetPoint("TOPLEFT", PAD - 4, -y)
-        y = y + 24
+    self.fieldChecks = {}
+    local half = math.ceil(#KT.FIELDS / 2)
+    for i, fld in ipairs(KT.FIELDS) do
+        local key = fld.key
+        local cb = Wg.Check(f, fld.label, function() return KT:Fields()[key] end, function(v) KT:SetField(key, v) end, fld.hint)
+        local col, row = i <= half and 0 or 1, i <= half and i - 1 or i - half - 1
+        cb:SetPoint("TOPLEFT", PAD - 4 + col * 168, -(y + row * 22))
+        cb.key = key
         self.checks[#self.checks + 1] = cb
-        return cb
+        self.fieldChecks[key] = cb
     end
-    check("Who it's attacking", "target", "\"Targeting: You\" in red when it's coming for you.")
-    check("How hard it is, in words", "difficulty", "Trivial, Easy, Even, Hard, Very hard or Deadly, on the Regular and Classic cards. Every look colours the level that way anyway.")
-    check("Quest progress", "quests", "The quest lines the game's tooltip shows for this creature, yours and your group's.")
-    check("Other lines from the game", "other", "What else the game's tooltip says: a party member's zone when they're elsewhere, \"Skinnable\", \"AFK\". On Regular, Mid, Classic and Portrait.")
-    self.friends = check("Kills with your Krakenfriends partner", "friends", "How often you and your Krakenfriends partner have killed this creature. Only shows when Krakenfriends is loaded and you two have killed it.")
-    y = y + 6
+    self.friends = self.fieldChecks.friends
+    y = y + half * 22 + 8
 
     -- the card
     heading(f, "The card", y)
     y = y + 24
-    check("Use the Kraken card", "enabled", "Off: creatures and players get the game's own tooltip again (/kt blizzard).", KT.db.settings)
+    local enabled = Wg.Check(f, "Use the Kraken card", function() return KT.db.settings.enabled end,
+        function(v) KT.db.settings.enabled = v end, "Off: creatures and players get the game's own tooltip again (/kt blizzard).")
+    enabled:SetPoint("TOPLEFT", PAD - 4, -y)
+    self.checks[#self.checks + 1] = enabled
+    y = y + 24
 
     self.scaleText = stepper(f, "Scale", PAD + 2, y, 44, function(d)
         local st = KT.db.settings
@@ -205,6 +212,7 @@ function Options:Refresh()
     local i = 1
     for n, st in ipairs(KT.STYLES) do if st == s.style then i = n end end
     self.styleName:SetText(("%s  %d/%d"):format(KT.STYLE_LABEL[s.style], i, #KT.STYLES))
+    self.fieldsHeading:SetText("On the card: " .. KT.STYLE_LABEL[s.style])
     self.styleHint:SetText(KT.STYLE_HINT[s.style])
     for _, cb in ipairs(self.checks) do
         local onShow = cb:GetScript("OnShow")

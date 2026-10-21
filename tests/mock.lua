@@ -118,6 +118,8 @@ function FireEvent(e, ...)
     end
 end
 function Click(btn, which)
+    -- a tick box flips before its OnClick runs, as in the game
+    if btn._kind == "CheckButton" then rawset(btn, "_checked", not btn._checked) end
     local s = btn._scripts.OnClick
     if s then s(btn, which or "LeftButton") end
 end

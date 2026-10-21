@@ -18,6 +18,8 @@ Agreed:
 
 Not needed: the guild.
 
+Since 0.6 every style can show every field, chosen per style in the options (On the card); the small styles put what doesn't fit their own lines (the group's counts, the zone) on an extra line or as more icons. The condensed designs below decide the layout; which fields they show is then up to each player.
+
 Proposed on top:
 
 1. Elite as **"24+"** after the level instead of the gold ELITE badge (the classic WoW mark, saves width).
