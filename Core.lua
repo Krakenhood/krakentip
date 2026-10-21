@@ -133,7 +133,6 @@ KT.FIELDS = {
     { key = "group", label = "Your group's quests", hint = "Each group member's progress for this creature, under their name (\"Jokke 5/8\")." },
     { key = "other", label = "Zone and other lines", hint = "What else the game's tooltip says: a party member's zone when they're elsewhere, \"Skinnable\", \"AFK\"." },
     { key = "guild", label = "Guild", hint = "A player's guild.", off = { minimal = true, plate = true, bar = true, icons = true } },
-    { key = "difficulty", label = "Difficulty in words", hint = "Trivial, Easy, Even, Hard, Very hard or Deadly. The level's colour says it anyway.", off = "all" },
     { key = "friends", label = "Krakenfriends kills", hint = "How often you and your Krakenfriends partner have killed this creature. Only with Krakenfriends loaded." },
 }
 
@@ -196,7 +195,6 @@ function KT:LoadDB()
                 if s.lines[key] == false then f[key] = false end
             end
             if s.lines.quests == false then f.group = false end
-            if s.lines.difficulty == true then f.difficulty = true end
             if next(f) then s.fields[style] = f end
         end
         s.lines = nil
@@ -224,7 +222,7 @@ local HELP = {
     { "/kt tooltip", "show the card where the game puts tooltips (move that in Edit Mode)" },
     { "/kt style", "switch to the next look (or /kt style plate, see /kt styles)" },
     { "/kt styles", "list the looks" },
-    { "/kt show group", "show or hide a field on this look (type, title, rank, health, target, quests, group, other, guild, difficulty, friends)" },
+    { "/kt show group", "show or hide a field on this look (type, title, rank, health, target, quests, group, other, guild, friends)" },
     { "/kt compare", "see every look side by side; hover a unit to fill them" },
     { "/kt width 1.2", "make this look wider or narrower (0.6 to 1.6)" },
     { "/kt height 0.8", "make this look taller or lower (0.6 to 1.6)" },

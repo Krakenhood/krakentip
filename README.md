@@ -42,7 +42,6 @@ The **health bar** has a texture (Smooth, Flat, Raid, Skill bar) and a colour: f
 - **What it is**: "Beast · Wolf", an NPC's title ("Innkeeper · Humanoid"), a player's race and class. A badge for **Elite**, **Rare**, **Rare Elite** and **Boss**.
 - **Health**: red for what you can attack, green for everyone else.
 - **Targeting**: who it's attacking. "You" in red when it's coming for you, players in their class colour.
-- **Difficulty in words** (off by default, since the level's colour says it): Trivial, Easy, Even, Hard, Very hard or Deadly, on the Regular and Classic cards.
 - **Guild** for players.
 - **Your quest progress**: your objectives for this creature, or your count ("3/8") on the small styles.
 - **Your group's quests**: each group member's progress, under their name, or as "Jokke 5/8" on the small styles.
@@ -53,9 +52,9 @@ The card keeps itself up to date while you hover: health, who it's attacking, de
 
 ## What's on the card
 
-Each style has its own list of what it shows, in the options under **On the card**, with a **Defaults** button to put it back: type (or race and class), NPC title, elite/rare/boss, health numbers, who it's attacking, your quest progress, your group's quests, zone and other lines, guild, difficulty in words, Krakenfriends kills. The name, the level and the bar always show. `/kt show group` switches one field of the style in use.
+Each style has its own list of what it shows, in the options under **On the card**, with a **Defaults** button to put it back: type (or race and class), NPC title, elite/rare/boss, health numbers, who it's attacking, your quest progress, your group's quests, zone and other lines, guild, Krakenfriends kills. The name, the level and the bar always show. `/kt show group` switches one field of the style in use.
 
-By default every style shows everything except the difficulty in words (the level's colour says it), and the small styles (Minimal, Plate, Bar, Icons) leave out the guild. Where a small style has no room on its own lines, the extra fields go on a line of their own (Minimal, Plate, Bar) or become more icons (Icons).
+By default every style shows everything, except that the small styles (Minimal, Plate, Bar, Icons) leave out the guild. Where a small style has no room on its own lines, the extra fields go on a line of their own (Minimal, Plate, Bar) or become more icons (Icons).
 
 ![A party member in another zone, and a wolf the group needs](assets/screenshots/8-group.png)
 
@@ -102,7 +101,7 @@ The game builds unit tooltips (creatures and players) on their own path, apart f
 | `/kt compare` | All eight styles side by side; hover a unit to fill them |
 | `/kt width 0.8` | This style's width (0.6 to 1.6) |
 | `/kt height 1.2` | This style's height (0.6 to 1.6) |
-| `/kt show group` | Show or hide a field on this style: type, title, rank, health, target, quests, group, other, guild, difficulty, friends |
+| `/kt show group` | Show or hide a field on this style: type, title, rank, health, target, quests, group, other, guild, friends |
 | `/kt bar flat` | The bar's texture: smooth, flat, raid, skill (no name: the next one) |
 | `/kt barcolor health` | The bar's colour: reaction, health, gold |
 | `/kt scale 1.2` | Make the card bigger or smaller (0.6 to 1.6) |

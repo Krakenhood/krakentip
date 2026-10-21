@@ -92,10 +92,10 @@ function Card:Gather(unit, extra)
         info.family = call(UnitCreatureFamily, unit)
         info.together, info.partner = killedTogether(unit)
     end
-    -- how hard it is only matters for what you can fight
+    -- the level's colour says how hard it is, for what you can fight
     if info.canAttack then
-        local word, color, diff = KT.Difficulty(info.level, call(UnitLevel, "player"), call(GetQuestGreenRange))
-        info.difficulty, info.difficultyColor, info.diff = word, color, diff
+        local _, color = KT.Difficulty(info.level, call(UnitLevel, "player"), call(GetQuestGreenRange))
+        info.difficultyColor = color
     end
     return info
 end
@@ -241,7 +241,7 @@ function Card:ToggleSample(on)
     local info = {}
     for k, v in pairs(KT.Sample) do info[k] = v end
     info.targetColor = T.bad
-    info.difficulty, info.difficultyColor, info.diff = "Hard", { 1.00, 0.50, 0.25 }, 3
+    info.difficultyColor = { 1.00, 0.50, 0.25 } -- hard: three levels above you
     info.quests = {}
     for i, q in ipairs(KT.Sample.quests) do info.quests[i] = q end
     self:Fill(info)

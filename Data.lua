@@ -51,8 +51,9 @@ KT.Reaction = {
     friendly = { 0.35, 0.95, 0.35 },
 }
 
--- How hard a creature is for you, by the level difference. `range` is how far
--- below you a creature still gives experience; below that it's trivial.
+-- How hard a creature is for you, by the level difference: a word and the
+-- colour the level is shown in. `range` is how far below you a creature still
+-- gives experience; below that it's trivial.
 function KT.Difficulty(level, mine, range)
     if not level or level < 0 then return "Deadly", { 1.00, 0.10, 0.10 }, nil end
     if not mine then return nil end

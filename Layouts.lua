@@ -248,18 +248,10 @@ function Layouts.RankTag(info, lines)
     return (lines or ALL).rank and KT.Classification[info.cls] or nil
 end
 
-local function difficultyText(info, lines)
-    if not (lines.difficulty and info.difficulty) then return nil end
-    if info.diff and info.diff ~= 0 then return ("%s (%+d)"):format(info.difficulty, info.diff) end
-    return info.difficulty
-end
-
 -- The lines of the Regular card, as { label, value, colour }.
 function Layouts.Rows(info, lines)
     local rows = {}
     if lines.target and info.target then rows[#rows + 1] = { "Targeting", info.target, info.targetColor } end
-    local diff = difficultyText(info, lines)
-    if diff then rows[#rows + 1] = { "Difficulty", diff, info.difficultyColor } end
     if lines.guild and info.guild then rows[#rows + 1] = { "Guild", "<" .. info.guild .. ">", T.text } end
     if lines.friends and info.together then
         rows[#rows + 1] = { info.partner and ("Killed with " .. info.partner) or "Killed together", info.together, T.teal }
@@ -337,7 +329,7 @@ end
 
 -- What a small look has no place for on its own lines, coloured, for an
 -- extra line: your group's counts, the zone and other lines, the guild,
--- the difficulty, the kills together. `skip` leaves some out ({ guild = true }).
+-- the kills together. `skip` leaves some out ({ guild = true }).
 function Layouts.Extras(info, lines, skip)
     skip = skip or {}
     local out = {}
@@ -351,8 +343,6 @@ function Layouts.Extras(info, lines, skip)
         end
     end
     if not skip.guild and lines.guild and info.guild then out[#out + 1] = paint("<" .. info.guild .. ">", T.dim) end
-    local diff = not skip.difficulty and difficultyText(info, lines)
-    if diff then out[#out + 1] = paint(diff, info.difficultyColor or T.text) end
     if not skip.friends and lines.friends and info.together then
         out[#out + 1] = paint(("%d with %s"):format(info.together, info.partner or "your friend"), T.teal)
     end
@@ -748,8 +738,6 @@ function CL.Fill(f, info, s, wk, hk)
     if info.isPlayer then what = what:gsub(" · ", " ") end
     local r = rank(info, s.lines)
     add(("Level %s%s%s"):format(level, what ~= "" and " " .. what or "", r and (" (" .. r .. ")") or ""))
-    local diff = difficultyText(info, s.lines)
-    if diff then add(diff, info.difficultyColor) end
     if s.lines.target and info.target then add("Target: " .. tostring(info.target), info.targetColor) end
     if s.lines.friends and info.together then add(("Killed with %s: %d"):format(info.partner or "your friend", info.together), T.teal) end
     for _, o in ipairs(otherLines(info, s.lines)) do add(o, T.text) end
@@ -1065,7 +1053,6 @@ local ICON = {
     other = { "Interface\\Icons\\INV_Misc_Map_01", "Interface\\Icons\\INV_Misc_Note_01" },
     friends = { "Interface\\Icons\\Achievement_Reputation_01", "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01" },
     guild = { "Interface\\Icons\\INV_Shirt_GuildTabard_01", "Interface\\Icons\\INV_Misc_Note_01" },
-    difficulty = { "Interface\\Icons\\Ability_DualWield", "Interface\\Icons\\INV_Sword_04" },
 }
 
 function IC.Create(f)
@@ -1116,8 +1103,6 @@ function IC.Fill(f, info, s, wk, hk)
     for _, o in ipairs(otherLines(info, lines)) do add(Wg.FirstFile(ICON.other), o, T.text) end
     if lines.friends and info.together then add(Wg.FirstFile(ICON.friends), info.together, T.teal) end
     if lines.guild and info.guild then add(Wg.FirstFile(ICON.guild), "<" .. info.guild .. ">", T.text) end
-    local diff = difficultyText(info, lines)
-    if diff then add(Wg.FirstFile(ICON.difficulty), diff, info.difficultyColor) end
     for i, c in ipairs(list) do f.chips:Get(i):Set(c[1], c[2], c[3]) end
     f.chips:HideFrom(#list + 1)
 

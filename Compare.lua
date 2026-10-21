@@ -83,7 +83,7 @@ local function sample()
     local info = {}
     for k, v in pairs(KT.Sample) do info[k] = v end
     info.targetColor = T.bad
-    info.difficulty, info.difficultyColor, info.diff = "Hard", { 1.00, 0.50, 0.25 }, 3
+    info.difficultyColor = { 1.00, 0.50, 0.25 } -- hard: three levels above you
     info.quests = {}
     for i, q in ipairs(KT.Sample.quests) do info.quests[i] = q end
     return info
