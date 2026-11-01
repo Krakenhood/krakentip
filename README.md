@@ -117,4 +117,5 @@ Copy the `Krakentip` folder into the game's `Interface\AddOns` folder.
 ## Development
 
 - `cd tests && npm install && npm test` runs the addon headless against a mock of the game.
-- `node tools/screenshots/shots.js` hovers a few units in each style through the real code and redraws `assets/screenshots/`. The layout follows the addon; fonts, textures and the creatures are stand-ins.
+- `node tools/screenshots/shots.js` hovers a few units in each style through the real code and redraws `assets/screenshots/`.
+- `node tools/screenshots/shots.js --page <file>` writes every style for every case on one page instead. It's published as the "Krakentip Cards" artifact (https://claude.ai/artifact/McwqBjHKTjQyfNXp7Kcoqq) and republished after each design change. The layout follows the addon; fonts, textures and the creatures are stand-ins.

@@ -133,6 +133,21 @@ for _, style in ipairs(KT.STYLES) do
     S.style = style
     out.group[style] = { member = hover("party1"), wolf = hover("wolfGroup") }
 end
+-- a full party: you and four members on the same quest
+UNITS.wolfParty = {
+    guid = "Creature-0-1-2-3-4523-000ABE", name = "Timberling Ravager", level = 24, ctype = "Beast", family = "Wolf",
+    cls = "elite", hostile = true, hp = 1116, hpMax = 1800, target = "player",
+    questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 },
+        { leftText = "Jokke", type = 18 }, { leftText = " - Ravaged Pelt: 5/8", type = 8 },
+        { leftText = "Thalianne", type = 18 }, { leftText = " - Ravaged Pelt: 8/8", type = 8 },
+        { leftText = "Mira", type = 18 }, { leftText = " - Ravaged Pelt: 1/8", type = 8 },
+        { leftText = "Brokk", type = 18 }, { leftText = " - Ravaged Pelt: 6/8", type = 8 } },
+}
+out.party = {}
+for _, style in ipairs(KT.STYLES) do
+    S.style = style
+    out.party[style] = hover("wolfParty")
+end
 UNITS.party1 = nil
 S.style = "regular"
 

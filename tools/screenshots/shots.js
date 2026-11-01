@@ -289,6 +289,85 @@ function optionsScene() {
     '/kt opens the options. The sample card shows the settings without a creature around.');
 }
 
+// ---------------------------------------------------------------- the page
+// node tools/screenshots/shots.js --page <file>: every style for every case on
+// one page (published as the "Krakentip Cards" artifact), instead of the PNGs.
+const pageAt = process.argv.indexOf('--page');
+if (pageAt > 0) {
+  const file = process.argv[pageAt + 1];
+  const version = (fs.readFileSync(path.join(root, 'Krakentip.toc'), 'utf8').match(/## Version: (\S+)/) || [])[1] || '?';
+  const commit = (() => { try { return execFileSync('git', ['-C', root, 'rev-parse', '--short', 'HEAD']).toString().trim(); } catch (e) { return ''; } })();
+  const built = new Date().toISOString().slice(0, 10);
+  const Z = 1.25;
+  const fig = (label, hint, c) => {
+    const look = cardHTML(c);
+    return `<figure class="cell"><figcaption><b>${esc(label)}</b>${hint ? `<span>${esc(hint)}</span>` : ''}</figcaption>
+      <div class="stage"><div class="card" style="width:${Math.ceil(look.w * Z) + 24}px;height:${Math.ceil(look.h * Z) + 24}px">
+        <div style="position:absolute;left:12px;top:12px;transform:scale(${Z});transform-origin:top left">${look.html}</div></div></div></figure>`;
+  };
+  const allStyles = (pick) => data.styles.map(st => fig(data.labels[st], data.hints[st], pick(st))).join('');
+  const sections = [
+    ['wolf', 'A quest creature attacking you', 'Timberling Ravager, level 24 elite wolf. It\'s attacking you, and your quest needs 3 of 8 of its pelts.', allStyles(st => data.cards[st].wolf)],
+    ['party', 'The same wolf, with a full party on the quest', 'You and four party members, all on "Ravaged Pelts": you have 3/8, Jokke 5/8, Thalianne 8/8, Mira 1/8, Brokk 6/8.', allStyles(st => data.party[st])],
+    ['member', 'A party member in another zone', 'Jokke, an Orc Rogue in your party, standing in Orgrimmar while you\'re elsewhere. The game\'s tooltip adds his zone.', allStyles(st => data.group[st].member)],
+    ['boss', 'A boss whose health the game hides', 'Edwin VanCleef. The game hides his health numbers from addons, so the bar fills and the percentage is written by the game.', allStyles(st => data.cards[st].boss)],
+    ['neutral', 'A neutral creature', 'Bristleback Quilboar, level 19, neutral (yellow), not attacking anyone.', allStyles(st => data.cards[st].boar)],
+    ['npc', 'A friendly NPC', 'Innkeeper Farley, with his title.', allStyles(st => data.cards[st].innkeeper)],
+    ['player', 'A friendly player', 'Thalianne, a Night Elf Mage in the guild Krakenhood.', allStyles(st => data.cards[st].friend)],
+    ['sizes', 'Width, height and the health bar', 'Each style has its own width and height (60% to 160%). The bar has four textures and three colours.',
+      [['Regular as designed', data.variants.regular], ['Regular at width 80%, height 70%', data.variants.regularSmall],
+       ['Regular at width 130%, height 120%', data.variants.regularWide], ['Minimal at width 160%, height 130%', data.variants.minimalWide]]
+        .map(([l, c]) => fig(l, '', c)).join('') +
+      Object.keys(data.barLabels).map(k => fig((k.startsWith('tex_') ? 'Bar texture: ' : 'Bar colour: ') + data.barLabels[k], 'on Mid', data.variants[k])).join('')],
+  ];
+  const nav = sections.map(([id, title]) => `<a href="#${id}">${esc(title)}</a>`).join('');
+  const body = sections.map(([id, title, text, cells]) => `<section id="${id}"><h2>${esc(title)}</h2><p class="lede">${esc(text)}</p><div class="grid">${cells}</div></section>`).join('');
+  const PAGE_CSS = `
+:root { --ground: #17130f; --panel: #221c16; --line: #4a3c26; --gold: #ffd100; --ink: #efe6d2; --muted: #b3a68b; --faint: #7d725e;
+  --display: 'Caladea', 'Bitstream Charter', Georgia, serif; --body: 'Carlito', 'Liberation Sans', Calibri, sans-serif; color-scheme: dark; }
+html, body { background: var(--ground); color: var(--ink); }
+body { font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { display: grid; gap: 8px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+header h1 { font-family: var(--display); font-weight: 700; font-size: 34px; color: var(--gold); letter-spacing: .5px; text-wrap: balance; }
+header p { color: var(--muted); max-width: 68ch; }
+.meta { font-size: 13px; color: var(--faint); font-variant-numeric: tabular-nums; }
+nav { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-block: 14px; border-bottom: 1px solid var(--line); }
+nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+nav a:hover, nav a:focus-visible { color: var(--gold); text-decoration: underline; outline: none; }
+section { padding-top: 34px; display: grid; gap: 8px; }
+section h2 { font-family: var(--display); font-size: 24px; color: var(--gold); text-wrap: balance; }
+.lede { color: var(--muted); max-width: 70ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 18px 22px; padding-top: 10px; }
+.cell { display: grid; gap: 6px; align-content: start; min-width: 0; }
+figcaption { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }
+figcaption b { font-family: var(--display); font-size: 17px; color: var(--ink); font-weight: 700; }
+figcaption span { font-size: 13px; color: var(--faint); }
+.stage { overflow-x: auto; border-radius: 4px;
+  background: radial-gradient(ellipse at 40% 120%, #3e4a2a 0%, #222c1f 45%, #121a14 100%); }
+.stage .card { position: relative; }
+footer { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 13px; max-width: 80ch; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+`;
+  const html = `<title>Krakentip Cards</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caladea:wght@400;700&family=Carlito:wght@400;700&display=swap">
+<style>${CSS}${PAGE_CSS}</style>
+<div class="wrap">
+<header><h1>Krakentip cards</h1>
+<p>Every card style for the same set of creatures and players, so the styles can be compared side by side. The cards are drawn from the addon's own code; the fonts, textures and the unit portraits are stand-ins for the game's.</p>
+<p class="meta">Krakentip ${esc(version)}${commit ? ` · commit ${esc(commit)}` : ''} · built ${built}</p></header>
+<nav aria-label="Cases">${nav}</nav>
+${body}
+<footer>Defaults shown: every field on, except the guild on the small styles (Minimal, Plate, Bar, Icons). Each style's fields, width and height can be changed in the addon's options (/kt). The level's colour says how hard a creature is: grey trivial, green easy, yellow even, orange hard, red very hard.</footer>
+</div>`;
+  fs.writeFileSync(file, html);
+  console.log('wrote', file);
+  process.exit(0);
+}
+
 // ---------------------------------------------------------------- photograph
 const scenes = [
   ['1-card-at-mouse', mouseScene()],
