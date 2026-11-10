@@ -114,7 +114,7 @@ Card.frames = {}
 
 function Card:Style()
     local style = KT.db.settings.style
-    return Layouts[style] and style or "regular"
+    return Layouts[style] and style or KT.DEFAULT_STYLE
 end
 
 function Card:FrameFor(style)

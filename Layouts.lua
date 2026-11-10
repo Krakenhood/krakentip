@@ -4,11 +4,11 @@ local Wg = KT.Widgets
 local raw, clean = KT.raw, KT.clean
 
 --------------------------------------------------------------------------------
--- The looks of the card. Each builds its parts on a frame once (Create) and
--- places and fills them for a unit (Fill), returning the size it needs. Where
--- things go is worked out at fill time, so every look can be made wider,
--- narrower, taller or lower (settings.dims) and the bar can change its
--- texture and colour (settings.bar).
+-- What the looks (Slate.lua) are made of. Each look builds its parts on a
+-- frame once (Create) and places and fills them for a unit (Fill), returning
+-- the size it needs. Where things go is worked out at fill time, so every
+-- look can be made wider, narrower, taller or lower (settings.dims) and the
+-- bar can change its texture and colour (settings.bar).
 --
 -- Every part is placed from the card's top left corner (at()), and listed in
 -- f.parts: that's all the screenshot tool needs to draw a card as it is.
@@ -17,7 +17,6 @@ local raw, clean = KT.raw, KT.clean
 local Layouts = {}
 KT.Layouts = Layouts
 
-local DARK = { 0.10, 0.07, 0.03 } -- letters on the gold badge
 local floor, max, min = math.floor, math.max, math.min
 
 -- a font string's width, or a guess when the game won't say (secret text)
@@ -78,16 +77,21 @@ local function solid(f, color, alpha)
     return part(f, t, "solid")
 end
 
+-- the health bar: a dark track with a thin edge, the fill, a shine over it
+local TRACK, BAR_EDGE = { 0.02, 0.024, 0.047 }, { 0.17, 0.19, 0.26 }
 local function bar(f)
     local b = CreateFrame("StatusBar", nil, f)
     b:SetMinMaxValues(0, 1)
-    local bg = Wg.Solid(b, "BACKGROUND", { 0, 0, 0 }, 0.65)
+    local bg = Wg.Solid(b, "BACKGROUND", TRACK, 1)
     bg:SetAllPoints()
-    local edge = Wg.Solid(b, "BACKGROUND", T.gold, 0.5, -1)
+    local edge = Wg.Solid(b, "BACKGROUND", BAR_EDGE, 1, -1)
     edge:SetPoint("TOPLEFT", -1, 1)
     edge:SetPoint("BOTTOMRIGHT", 1, -1)
+    b.gloss = b:CreateTexture(nil, "OVERLAY")
+    b.gloss:SetTexture(KT.Media("gloss"))
+    b.gloss:Hide()
     part(f, b, "bar")
-    b.edge = edge
+    b.edge, b._edge = edge, BAR_EDGE
     b.text = text(f, 11, T.text, { outline = "OUTLINE", top = true })
     return b
 end
@@ -108,55 +112,12 @@ local function barText(f, b, x, y, w, h, lines)
     b.text:Show()
 end
 
--- the badge for elites, rares and bosses: dark letters on gold
-local function tag(f, size)
-    local t = CreateFrame("Frame", nil, f)
-    t:SetSize(40, size + 3)
-    t.bg = Wg.Solid(t, "BACKGROUND", T.gold, 0.95)
-    t.bg:SetAllPoints()
-    t.text = Wg.Text(t, size, DARK, "CENTER")
-    t.text:SetShadowOffset(0, 0)
-    t.text:SetPoint("CENTER", 0, 0)
-    t._size = size
-    function t:Set(label)
-        if not label then return self:Hide() end
-        self.text:SetText(label)
-        self:SetWidth(width(self.text, 30) + 8)
-        self:Show()
-    end
-    return part(f, t, "tag")
-end
-
 local function skull(f, size)
     local s = f:CreateTexture(nil, "ARTWORK")
     s:SetTexture(KT.Files.skull)
     s:SetSize(size, size)
     s._size = size
     return part(f, s, "skull")
-end
-
--- the level in a gold ring (or the skull); sets f.level and f.skull
-local function ring(f, size)
-    local r = CreateFrame("Frame", nil, f)
-    r:SetSize(size, size)
-    local disc = r:CreateTexture(nil, "BACKGROUND")
-    disc:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-    disc:SetVertexColor(0.15, 0.10, 0.07, 1)
-    disc:SetPoint("TOPLEFT", 3, -3)
-    disc:SetPoint("BOTTOMRIGHT", -3, 3)
-    local edge = r:CreateTexture(nil, "OVERLAY")
-    edge:SetTexture(KT.Files.ring)
-    edge:SetSize(size * 1.8, size * 1.8)
-    edge:SetPoint("TOPLEFT", -size / 15, size / 15)
-    f.level = Wg.Text(r, size >= 26 and 12 or 10, T.gold, "CENTER", "OUTLINE")
-    f.level:SetPoint("CENTER", 0, 0)
-    f.skull = r:CreateTexture(nil, "ARTWORK")
-    f.skull:SetTexture(KT.Files.skull)
-    f.skull:SetSize(size * 0.55, size * 0.55)
-    f.skull:SetPoint("CENTER")
-    r._size = size
-    r.level, r.skull = f.level, f.skull
-    return part(f, r, "ring")
 end
 
 -- The level in its difficulty colour, or the skull. True when it's the skull.
@@ -173,22 +134,29 @@ local function setLevel(f, info)
     return true
 end
 
--- a small icon with a value next to it, for the Icons look
+-- what an NPC does, as a small boxed label with its icon ("Hearthstone")
+local CHIP_EDGE, CHIP_GROUND = { 0.19, 0.21, 0.29 }, { 0.04, 0.045, 0.09 }
 local function chip(f)
     local c = CreateFrame("Frame", nil, f)
-    c:SetSize(30, 14)
+    c:SetSize(30, 16)
+    c.edge = Wg.Solid(c, "BACKGROUND", CHIP_EDGE, 1, 0)
+    c.edge:SetAllPoints()
+    c.ground = Wg.Solid(c, "BACKGROUND", CHIP_GROUND, 1, 1)
+    c.ground:SetPoint("TOPLEFT", 1, -1)
+    c.ground:SetPoint("BOTTOMRIGHT", -1, 1)
     c.icon = c:CreateTexture(nil, "ARTWORK")
-    c.icon:SetSize(13, 13)
-    c.icon:SetPoint("LEFT")
-    c.text = Wg.Text(c, 10, T.text)
-    c.text:SetPoint("LEFT", c.icon, "RIGHT", 2, 0)
+    c.icon:SetSize(12, 12)
+    c.icon:SetPoint("LEFT", 5, 0)
+    c.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    c.text = Wg.Text(c, 11, { 0.85, 0.84, 0.80 })
+    c.text:SetPoint("LEFT", c.icon, "RIGHT", 4, 0)
     function c:Set(file, value, color)
         if value == nil then return self:Hide() end
         self.icon:SetTexture(file)
         self._icon = file
         setText(self.text, value)
-        self.text:SetTextColor(Wg.rgb(color or T.text))
-        self:SetWidth(15 + width(self.text, 24))
+        if color then self.text:SetTextColor(Wg.rgb(color)) end
+        self:SetWidth(5 + 12 + 4 + width(self.text, 40) + 6)
         self:Show()
     end
     return part(f, c, "chip")
@@ -219,47 +187,6 @@ function Layouts.NameColor(info)
     return KT.Reaction[info.reaction] or KT.Reaction.hostile
 end
 
--- Every field on: for callers that don't pass a look's fields.
-local ALL = setmetatable({}, { __index = function() return true end })
-
--- "Beast · Wolf", "Innkeeper · Humanoid", "Night Elf · Mage": what it is, as
--- far as the look's fields ask (type, NPC title)
-function Layouts.Kind(info, lines)
-    lines = lines or ALL
-    local parts = {}
-    local function add(s) if type(s) == "string" and s ~= "" then parts[#parts + 1] = s end end
-    if info.isPlayer then
-        if lines.type then add(info.race); add(info.className) end
-    else
-        if lines.title then add(info.subtitle) end
-        if lines.type then
-            add(info.ctype)
-            if info.family ~= info.ctype then add(info.family) end
-        end
-    end
-    return table.concat(parts, " · ")
-end
-
--- "Elite", "Rare elite", "Boss"; and the gold badge's word ("ELITE")
-local function rank(info, lines)
-    local cls = (lines or ALL).rank and KT.Classification[info.cls]
-    return cls and (cls:sub(1, 1) .. cls:sub(2):lower()) or nil
-end
-function Layouts.RankTag(info, lines)
-    return (lines or ALL).rank and KT.Classification[info.cls] or nil
-end
-
--- The lines of the Regular card, as { label, value, colour }.
-function Layouts.Rows(info, lines)
-    local rows = {}
-    if lines.target and info.target then rows[#rows + 1] = { "Targeting", info.target, info.targetColor } end
-    if lines.guild and info.guild then rows[#rows + 1] = { "Guild", "<" .. info.guild .. ">", T.text } end
-    if lines.friends and info.together then
-        rows[#rows + 1] = { info.partner and ("Killed with " .. info.partner) or "Killed together", info.together, T.teal }
-    end
-    return rows
-end
-
 -- Quest lines as the game words them ({ text, isTitle, isPlayer, owner }):
 -- yours when `quests` is on, your group's when `group` is; a quest's title
 -- only when something under it shows.
@@ -276,82 +203,9 @@ function Layouts.QuestLines(info, lines)
     return out
 end
 
-local function count(q)
-    local t = clean(q[1])
-    local n = type(t) == "string" and t:match("(%d+%s*/%s*%d+)")
-    return n and (n:gsub("%s", "")) or nil
-end
-
--- your count, "3/8"
-function Layouts.QuestCount(info, lines)
-    if not lines.quests then return nil end
-    for _, q in ipairs(info.quests or {}) do
-        if not (q[2] or q[3] or q[4]) and count(q) then return count(q) end
-    end
-end
-
--- each group member's count, { "Jokke 5/8", ... }
-function Layouts.GroupCounts(info, lines)
-    local out, seen = {}, {}
-    if not lines.group then return out end
-    for _, q in ipairs(info.quests or {}) do
-        if q[4] and not seen[q[4]] and count(q) then
-            seen[q[4]] = true
-            out[#out + 1] = q[4] .. " " .. count(q)
-        end
-    end
-    return out
-end
-
--- the quest objectives (titles left out), for the looks with little room;
--- a group member's with their name in front ("Jokke: Ravaged Pelt: 5/8")
-local function objectives(info, lines)
-    local out = {}
-    for _, q in ipairs(Layouts.QuestLines(info, lines)) do
-        if not q[2] and not q[3] then
-            local text = q[1]
-            local plain = q[4] and clean(text)
-            if plain then text = q[4] .. ": " .. plain:gsub("^%s*%-%s*", "") end
-            out[#out + 1] = text
-        end
-    end
-    return out
-end
-
--- how a quest line looks: titles in gold, a group member's name dim, objectives white
-local function questColor(q)
-    return q[2] and T.gold or q[3] and T.dim or T.text
-end
-
 -- the game's other lines (a party member's zone, "Skinnable"), when wanted
 local function otherLines(info, lines)
     return lines.other and info.other or {}
-end
-
--- What a small look has no place for on its own lines, coloured, for an
--- extra line: your group's counts, the zone and other lines, the guild,
--- the kills together. `skip` leaves some out ({ guild = true }).
-function Layouts.Extras(info, lines, skip)
-    skip = skip or {}
-    local out = {}
-    if not skip.group then
-        for _, c in ipairs(Layouts.GroupCounts(info, lines)) do out[#out + 1] = paint(c, T.gold) end
-    end
-    if not skip.other then
-        for _, o in ipairs(otherLines(info, lines)) do
-            local plain = clean(o)
-            if plain then out[#out + 1] = paint(plain, T.text) end
-        end
-    end
-    if not skip.guild and lines.guild and info.guild then out[#out + 1] = paint("<" .. info.guild .. ">", T.dim) end
-    if not skip.friends and lines.friends and info.together then
-        out[#out + 1] = paint(("%d with %s"):format(info.together, info.partner or "your friend"), T.teal)
-    end
-    return out
-end
-
-local function targetText(info, lines)
-    if lines.target and info.target then return "» " .. tostring(info.target) end
 end
 
 --------------------------------------------------------------------------------
@@ -361,24 +215,29 @@ end
 --------------------------------------------------------------------------------
 
 KT.BarTextures = {
+    { key = "slate", label = "Slate", files = { "Interface\\Buttons\\WHITE8X8" }, gloss = true },
     { key = "smooth", label = "Smooth", files = { "Interface\\TargetingFrame\\UI-StatusBar" } },
     { key = "flat", label = "Flat", files = { "Interface\\Buttons\\WHITE8X8" } },
     { key = "raid", label = "Raid", files = { "Interface\\RaidFrame\\Raid-Bar-Hp-Fill", "Interface\\TargetingFrame\\UI-StatusBar" } },
     { key = "skill", label = "Skill bar", files = { "Interface\\PaperDollInfoFrame\\UI-Character-Skills-Bar", "Interface\\TargetingFrame\\UI-StatusBar" } },
 }
 KT.BarColors = {
-    { key = "reaction", label = "Foe or friend" },  -- red for what you can attack, green for the rest
     { key = "health", label = "By health" },        -- green, to yellow, to red as it drops
+    { key = "reaction", label = "Foe or friend" },  -- red for what you can attack, green for the rest
     { key = "gold", label = "Gold" },
 }
 local TEXTURE = {}
 for _, t in ipairs(KT.BarTextures) do TEXTURE[t.key] = t end
 
+-- green at full, yellow at half, red when low (p from 0 to 1)
+local GREEN, YELLOW, RED = { 0.25, 0.78, 0.25 }, { 1, 0.84, 0 }, { 0.90, 0.16, 0.12 }
+local function mix(a, b, t) return { a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t } end
 local function healthColor(p)
-    -- green at full, yellow at half, red when low
-    if p > 0.5 then return { 2 * (1 - p) * 0.9 + 0.1, 0.75, 0.15 } end
-    return { 0.9, 1.5 * p, 0.12 }
+    p = max(0, min(1, p))
+    if p >= 0.5 then return mix(YELLOW, GREEN, (p - 0.5) * 2) end
+    return mix(RED, YELLOW, p * 2)
 end
+Layouts.HealthColor = healthColor
 
 function Layouts.SetHealth(b, info, s, short)
     local unit = info.unit
@@ -392,9 +251,18 @@ function Layouts.SetHealth(b, info, s, short)
     pcall(b.SetValue, b, hp or 0)
 
     local look = s.bar or {}
-    local tex = TEXTURE[look.texture] or TEXTURE.smooth
+    local tex = TEXTURE[look.texture] or TEXTURE.slate
     b:SetStatusBarTexture(Wg.FirstFile(tex.files))
     b._texture = tex.key
+    -- the Slate bar: flat, with a shine over the fill that follows it
+    if b.gloss then
+        local fill = b:GetStatusBarTexture()
+        if fill and not b.gloss._on then
+            b.gloss:SetAllPoints(fill)
+            b.gloss._on = true
+        end
+        b.gloss:SetShown(tex.gloss and true or false)
+    end
     local h, m = clean(hp), clean(hpMax)
     local color = info.canAttack and T.health or T.friendly
     if look.color == "gold" then
@@ -433,13 +301,7 @@ end
 function Layouts.Build(f, key)
     f.parts = {}
     f.look = Layouts[key].frame
-    if f.look == "dialog" then
-        Wg.DialogFrame(f)
-    elseif f.look == "tip" then
-        f.backdrop = Wg.TipFrame(f)
-    else
-        Wg.ThinFrame(f, 0)
-    end
+    f.backdrop = Wg.TipFrame(f)
     -- texts that sit on the bar go on a layer above it
     f.top = CreateFrame("Frame", nil, f)
     f.top:SetAllPoints()
@@ -455,700 +317,10 @@ function Layouts.Fill(f, key, info, s)
     return L.Fill(f, info, view, wk, hk)
 end
 
---------------------------------------------------------------------------------
--- Regular: the full card in the gold dialog frame
---------------------------------------------------------------------------------
 
-local R = { frame = "dialog", WIDTH = 236 }
-Layouts.regular = R
-
-function R.Create(f)
-    f.band = solid(f, T.band)
-    f.ring = ring(f, 30)
-    f.name = text(f, 16, nil, { title = true })
-    f.sub = text(f, 11, T.dim)
-    f.tag = tag(f, 9)
-    f.bar = bar(f)
-    f.rows = pool(function() return { label = text(f, 11, T.dim), value = text(f, 11),
-        Show = function(r) r.label:Show(); r.value:Show() end, Hide = function(r) r.label:Hide(); r.value:Hide() end,
-        IsShown = function(r) return r.label:IsShown() end } end)
-    f.others = pool(function() return text(f, 11, T.dim) end)
-    f.sep = solid(f, T.line)
-    f.quests = pool(function() return text(f, 11) end)
-end
-
-function R.Fill(f, info, s, wk, hk)
-    local PAD = 8
-    local W = max(170, min(420, floor(R.WIDTH * wk + 0.5)))
-    at(f, f.band, "TOPLEFT", 2, 2)
-    f.band:SetSize(W - 4, 42)
-    at(f, f.ring, "TOPLEFT", PAD, 7)
-    setLevel(f, info)
-    at(f, f.name, "TOPLEFT", 45, 7)
-    f.name:SetWidth(W - 45 - PAD)
-    setText(f.name, info.name)
-    f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    at(f, f.sub, "TOPLEFT", 45, 27)
-    local kind = Layouts.Kind(info, s.lines)
-    f.sub:SetText(kind)
-    f.tag:Set(Layouts.RankTag(info, s.lines))
-    at(f, f.tag, "TOPLEFT", kind ~= "" and 45 + width(f.sub, 60) + 5 or 45, 27)
-
-    local y, bh = 48, V(16, hk, 6)
-    placeBar(f, f.bar, PAD, y, W - PAD * 2, bh)
-    barText(f, f.bar, PAD, y, W - PAD * 2, bh, s.lines)
-    Layouts.SetHealth(f.bar, info, s)
-    y = y + bh + V(5, hk, 3)
-
-    local rowH = V(16, hk, 13)
-    local rows = Layouts.Rows(info, s.lines)
-    for i, r in ipairs(rows) do
-        local row = f.rows:Get(i)
-        at(f, row.label, "TOPLEFT", PAD, y + 1)
-        row.label:SetText(r[1])
-        at(f, row.value, "TOPRIGHT", W - PAD, y + 1)
-        setText(row.value, r[2])
-        row.value:SetTextColor(Wg.rgb(r[3] or T.text))
-        y = y + rowH
-    end
-    f.rows:HideFrom(#rows + 1)
-
-    -- the game's other lines: a party member's zone, "Skinnable"
-    local others = otherLines(info, s.lines)
-    for i, o in ipairs(others) do
-        local fs = f.others:Get(i)
-        at(f, fs, "TOPLEFT", PAD, y + 1)
-        fs:SetWidth(W - PAD * 2)
-        setText(fs, o)
-        y = y + rowH
-    end
-    f.others:HideFrom(#others + 1)
-
-    -- quest progress, as the game words it
-    local quests = Layouts.QuestLines(info, s.lines)
-    if #quests > 0 then
-        y = y + V(4, hk, 2)
-        at(f, f.sep, "TOPLEFT", PAD, y)
-        f.sep:SetSize(W - PAD * 2, 1)
-        f.sep:Show()
-        y = y + V(5, hk, 3)
-    else
-        f.sep:Hide()
-    end
-    for i, q in ipairs(quests) do
-        local fs = f.quests:Get(i)
-        at(f, fs, "TOPLEFT", PAD, y)
-        fs:SetWidth(W - PAD * 2)
-        setText(fs, q[1])
-        fs:SetTextColor(Wg.rgb(questColor(q)))
-        y = y + V(14, hk, 12)
-    end
-    f.quests:HideFrom(#quests + 1)
-    return W, y + PAD
-end
-
---------------------------------------------------------------------------------
--- Mid: two lines of text and a thin bar, in a thin gold frame
---------------------------------------------------------------------------------
-
-local M = { frame = "thin", WIDTH = 214 }
-Layouts.mid = M
-
-function M.Create(f)
-    f.level = text(f, 12, T.gold, { outline = "OUTLINE" })
-    f.skull = skull(f, 13)
-    f.tag = tag(f, 8)
-    f.name = text(f, 14, nil, { title = true })
-    f.sub = text(f, 10, T.dim)
-    f.target = text(f, 10)
-    f.bar = bar(f)
-    f.quests = pool(function() return text(f, 10) end)
-end
-
-function M.Fill(f, info, s, wk, hk)
-    local PAD = 7
-    local W = max(150, min(400, floor(M.WIDTH * wk + 0.5)))
-    local isSkull = setLevel(f, info)
-    at(f, f.level, "TOPLEFT", PAD, 7)
-    at(f, f.skull, "TOPLEFT", PAD, 6)
-    f.tag:Set(Layouts.RankTag(info, s.lines))
-    at(f, f.tag, "TOPRIGHT", W - PAD, 7)
-    local nameX = isSkull and PAD + 17 or PAD + width(f.level, 14) + 5
-    at(f, f.name, "TOPLEFT", nameX, 5)
-    f.name:SetWidth(W - nameX - PAD - (f.tag:IsShown() and f.tag:GetWidth() + 4 or 0))
-    setText(f.name, info.name)
-    f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-
-    local y = 5 + V(20, hk, 17)
-    local kind = Layouts.Kind(info, s.lines)
-    if s.lines.guild and info.guild then kind = (kind ~= "" and kind .. " · " or "") .. "<" .. info.guild .. ">" end
-    at(f, f.sub, "TOPLEFT", PAD, y)
-    f.sub:SetText(kind)
-    local target = targetText(info, s.lines)
-    if target then
-        at(f, f.target, "TOPRIGHT", W - PAD, y)
-        setText(f.target, target)
-        f.target:SetTextColor(Wg.rgb(info.targetColor or T.text))
-        f.target:Show()
-    else
-        f.target:Hide()
-    end
-
-    y = y + V(15, hk, 13)
-    local bh = V(9, hk, 4)
-    placeBar(f, f.bar, PAD, y, W - PAD * 2, bh)
-    barText(f, f.bar, PAD, y, W - PAD * 2, bh, s.lines)
-    Layouts.SetHealth(f.bar, info, s, true)
-    y = y + bh + V(4, hk, 2)
-
-    local list = objectives(info, s.lines)
-    for _, e in ipairs(Layouts.Extras(info, s.lines, { group = true, guild = true })) do list[#list + 1] = e end
-    for i, q in ipairs(list) do
-        local fs = f.quests:Get(i)
-        at(f, fs, "TOPLEFT", PAD, y)
-        fs:SetWidth(W - PAD * 2)
-        setText(fs, q)
-        y = y + V(12, hk, 11)
-    end
-    f.quests:HideFrom(#list + 1)
-    return W, y + PAD - 2
-end
-
---------------------------------------------------------------------------------
--- Minimal: two short lines. Level, name, badge; then the bar, type, quest
--- count and target. A third line only when there's more to say: your group's
--- counts, the zone, the guild, the kills together.
---------------------------------------------------------------------------------
-
-local N = { frame = "thin", BAR_W = 60 }
-Layouts.minimal = N
-
-function N.Create(f)
-    f.level = text(f, 11, T.gold, { outline = "OUTLINE" })
-    f.skull = skull(f, 12)
-    f.name = text(f, 12)
-    f.tag = tag(f, 8)
-    f.bar = bar(f)
-    f.pct = f.bar.text
-    f.kind = text(f, 10, T.dim)
-    f.quest = text(f, 11, T.gold)
-    f.target = text(f, 11)
-    f.extra = text(f, 10)
-end
-
-function N.Fill(f, info, s, wk, hk)
-    local PAD, GAP = 6, 6
-    -- first line
-    local x, y = PAD, 4
-    if setLevel(f, info) then
-        at(f, f.skull, "TOPLEFT", x, y + 1)
-        x = x + 12 + GAP
-    else
-        at(f, f.level, "TOPLEFT", x, y + 1)
-        x = x + width(f.level, 14) + GAP
-    end
-    at(f, f.name, "TOPLEFT", x, y)
-    f.name:SetWidth(0)
-    setText(f.name, info.name)
-    f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    x = x + width(f.name, 110)
-    f.tag:Set(Layouts.RankTag(info, s.lines))
-    if f.tag:IsShown() then
-        at(f, f.tag, "TOPLEFT", x + GAP, y + 2)
-        x = x + GAP + f.tag:GetWidth()
-    end
-    local w1 = x + PAD
-
-    -- second line: the bar with its percentage, then what's left
-    y = y + V(17, hk, 15)
-    local bw, bh = max(30, floor(N.BAR_W * wk + 0.5)), V(8, hk, 4)
-    x = PAD
-    placeBar(f, f.bar, x, y + floor((12 - bh) / 2), bw, bh)
-    Layouts.SetHealth(f.bar, info, s, true)
-    Wg.SetFont(f.pct, 10, "OUTLINE")
-    f.pct._size = 10
-    if s.lines.health then
-        at(f, f.pct, "TOPLEFT", x + bw + 4, y)
-        f.pct:Show()
-        x = x + bw + 4 + max(width(f.pct, 24), 24) + GAP
-    else
-        f.pct:Hide()
-        x = x + bw + GAP
-    end
-    local kind = Layouts.Kind(info, s.lines)
-    if kind ~= "" then
-        at(f, f.kind, "TOPLEFT", x, y + 1)
-        f.kind:SetText(kind)
-        f.kind:Show()
-        x = x + width(f.kind, 60) + GAP
-    else
-        f.kind:Hide()
-    end
-    local count = Layouts.QuestCount(info, s.lines)
-    if count then
-        at(f, f.quest, "TOPLEFT", x, y)
-        f.quest:SetText(count)
-        f.quest:Show()
-        x = x + width(f.quest, 24) + GAP
-    else
-        f.quest:Hide()
-    end
-    local target = targetText(info, s.lines)
-    if target then
-        at(f, f.target, "TOPLEFT", x, y)
-        setText(f.target, target)
-        f.target:SetTextColor(Wg.rgb(info.targetColor or T.text))
-        f.target:Show()
-        x = x + width(f.target, 40) + GAP
-    else
-        f.target:Hide()
-    end
-    local W = max(w1, x - GAP + PAD)
-
-    -- third line, when there's more
-    local extras = Layouts.Extras(info, s.lines)
-    if #extras == 0 then
-        f.extra:Hide()
-        return W, y + 12 + 5
-    end
-    y = y + V(15, hk, 13)
-    at(f, f.extra, "TOPLEFT", PAD, y)
-    f.extra:SetWidth(0)
-    f.extra:SetText(table.concat(extras, "  "))
-    f.extra:Show()
-    -- as wide as it needs, up to a limit; past that it ends in "..."
-    W = max(W, min(floor(260 * wk + 0.5), width(f.extra, 120) + PAD * 2))
-    f.extra:SetWidth(W - PAD * 2)
-    return W, y + 12 + 5
-end
-
---------------------------------------------------------------------------------
--- Classic: the game's own tooltip, line by line, in the gold frame
---------------------------------------------------------------------------------
-
-local CL = { frame = "thin", MIN = 150, MAX = 280 }
-Layouts.classic = CL
-
-function CL.Create(f)
-    f.name = text(f, 13)
-    f.lines = pool(function() return text(f, 11) end)
-    f.bar = bar(f)
-end
-
-function CL.Fill(f, info, s, wk, hk)
-    local PAD = 8
-    local lines = {}
-    local function add(t, color) lines[#lines + 1] = { t, color or T.text } end
-    if info.isPlayer and s.lines.guild and info.guild then add("<" .. info.guild .. ">") end
-    local level = (info.level and info.level > 0) and tostring(info.level) or "??"
-    local what = Layouts.Kind(info, s.lines)
-    if info.isPlayer then what = what:gsub(" · ", " ") end
-    local r = rank(info, s.lines)
-    add(("Level %s%s%s"):format(level, what ~= "" and " " .. what or "", r and (" (" .. r .. ")") or ""))
-    if s.lines.target and info.target then add("Target: " .. tostring(info.target), info.targetColor) end
-    if s.lines.friends and info.together then add(("Killed with %s: %d"):format(info.partner or "your friend", info.together), T.teal) end
-    for _, o in ipairs(otherLines(info, s.lines)) do add(o, T.text) end
-    for _, q in ipairs(Layouts.QuestLines(info, s.lines)) do add(q[1], questColor(q)) end
-
-    at(f, f.name, "TOPLEFT", PAD, 7)
-    f.name:SetWidth(0)
-    setText(f.name, info.name)
-    f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    local w = width(f.name, 120)
-    local y, step = 7 + V(16, hk, 14), V(14, hk, 12)
-    for i, l in ipairs(lines) do
-        local fs = f.lines:Get(i)
-        at(f, fs, "TOPLEFT", PAD, y)
-        fs:SetWidth(0)
-        setText(fs, l[1])
-        fs:SetTextColor(Wg.rgb(l[2]))
-        w = max(w, width(fs, 100))
-        y = y + step
-    end
-    f.lines:HideFrom(#lines + 1)
-    local W = max(floor(CL.MIN * wk + 0.5), min(floor(CL.MAX * wk + 0.5), w + PAD * 2))
-    -- long lines end in "..." at the card's edge
-    f.name:SetWidth(W - PAD * 2)
-    for i = 1, #lines do f.lines[i]:SetWidth(W - PAD * 2) end
-    local bh = V(8, hk, 4)
-    y = y + V(3, hk, 2)
-    placeBar(f, f.bar, PAD, y, W - PAD * 2, bh)
-    barText(f, f.bar, PAD, y, W - PAD * 2, bh, s.lines)
-    Layouts.SetHealth(f.bar, info, s, true)
-    return W, y + bh + PAD
-end
-
---------------------------------------------------------------------------------
--- Plate: like a nameplate, centred and small
---------------------------------------------------------------------------------
-
-local PL = { frame = "thin", WIDTH = 170 }
-Layouts.plate = PL
-
-function PL.Create(f)
-    f.name = text(f, 12)
-    f.level = text(f, 10, T.gold, { outline = "OUTLINE" })
-    f.skull = skull(f, 11)
-    f.bar = bar(f)
-    f.info = text(f, 10)
-    f.extra = text(f, 10)
-end
-
-function PL.Fill(f, info, s, wk, hk)
-    local W = max(130, min(340, floor(PL.WIDTH * wk + 0.5)))
-    local name = info.name
-    if s.lines.rank and (info.cls == "rare" or info.cls == "rareelite") then
-        local plain = clean(info.name)
-        if plain then name = plain .. " (Rare)" end
-    end
-    at(f, f.name, "TOP", W / 2, 5)
-    f.name:SetWidth(W - 12)
-    f.name:SetJustifyH("CENTER")
-    setText(f.name, name)
-    f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-
-    local y, bh = 5 + V(17, hk, 15), V(10, hk, 5)
-    placeBar(f, f.bar, 30, y, W - 38, bh)
-    barText(f, f.bar, 30, y, W - 38, bh, s.lines)
-    Layouts.SetHealth(f.bar, info, s, true)
-    setLevel(f, info)
-    -- the classic elite mark: a plus after the level
-    if s.lines.rank and f.level:IsShown() and (info.cls == "elite" or info.cls == "rareelite" or info.cls == "worldboss") then
-        f.level:SetText(info.level .. "+")
-    end
-    at(f, f.level, "TOPRIGHT", 26, y + floor((bh - 10) / 2))
-    at(f, f.skull, "TOPLEFT", 13, y + floor((bh - 11) / 2))
-    y = y + bh + V(4, hk, 3)
-
-    -- what it is, its quest count and its target, on one centred line
-    local bits = {}
-    local kind = Layouts.Kind(info, s.lines)
-    if kind ~= "" then bits[#bits + 1] = paint(kind, T.dim) end
-    local count = Layouts.QuestCount(info, s.lines)
-    if count then bits[#bits + 1] = paint(count, T.gold) end
-    local target = targetText(info, s.lines)
-    if target then bits[#bits + 1] = paint(target, info.targetColor or T.text) end
-    local function line(fs, list)
-        if #list == 0 then return fs:Hide() end
-        at(f, fs, "TOP", W / 2, y)
-        fs:SetWidth(W - 8)
-        fs:SetJustifyH("CENTER")
-        fs:SetText(table.concat(list, "  "))
-        fs:Show()
-        y = y + 13
-    end
-    line(f.info, bits)
-    -- and what else there is (group counts, zone, guild), centred under it
-    line(f.extra, Layouts.Extras(info, s.lines))
-    return W, y + ((f.info:IsShown() or f.extra:IsShown()) and 4 or 2)
-end
-
---------------------------------------------------------------------------------
--- Portrait: like the game's target frame, with the unit's face
---------------------------------------------------------------------------------
-
-local PO = { frame = "thin", WIDTH = 250, FACE = 52 }
-Layouts.portrait = PO
-
--- an icon for the creature's kind, when the game can't draw its face
-local KIND_ICON = {
-    Beast = "Ability_Hunter_Pet_Wolf", Humanoid = "INV_Misc_Head_Human_01", Undead = "Spell_Shadow_RaiseDead",
-    Demon = "Spell_Shadow_SummonFelHunter", Elemental = "Spell_Frost_SummonWaterElemental", Dragonkin = "INV_Misc_Head_Dragon_01",
-    Mechanical = "INV_Gizmo_01", Giant = "Ability_Racial_Avatar", Critter = "Ability_Hunter_Pet_Rat",
-}
-Layouts.KIND_ICON = KIND_ICON
-
-function PO.Create(f)
-    local face = f:CreateTexture(nil, "ARTWORK")
-    face:SetSize(PO.FACE, PO.FACE)
-    local mask = f.CreateMaskTexture and f:CreateMaskTexture()
-    if mask then
-        mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-        mask:SetAllPoints(face)
-        face:AddMaskTexture(mask)
-    end
-    f.face = part(f, face, "face")
-    f.face._size = PO.FACE
-    -- the ring sits in the texture's top left: its hole is about 0.4 of the
-    -- texture wide, centred at 0.31 across and 0.28 down (as the minimap
-    -- button uses it), so the texture is sized for the hole to fit the face
-    local edge = f:CreateTexture(nil, "OVERLAY")
-    edge:SetTexture(KT.Files.ring)
-    local size = PO.FACE / 0.4
-    edge:SetSize(size, size)
-    edge:SetPoint("TOPLEFT", face, "TOPLEFT", -(size * 0.31 - PO.FACE / 2), size * 0.28 - PO.FACE / 2)
-    f.faceRing = edge
-    -- the level in a small ring on the face's lower left, as on the game's frames
-    f.ring = ring(f, 22)
-    f.ring:SetFrameLevel((f:GetFrameLevel() or 1) + 3)
-    f.band = solid(f, T.band)
-    f.name = text(f, 13, nil, { title = true })
-    f.quest = text(f, 11, T.gold)
-    f.bar = bar(f)
-    f.sub = text(f, 10, T.dim)
-    f.target = text(f, 10)
-    f.quests = pool(function() return text(f, 10) end)
-end
-
-local function setFace(tex, info)
-    local unit = info.unit or info.portraitUnit
-    tex._unit = nil
-    if unit and SetPortraitTexture and KT.call(UnitExists, unit) and pcall(SetPortraitTexture, tex, unit) then
-        tex._unit = info.ctype or (info.isPlayer and "player") or "unit"
-        return
-    end
-    local icon = "Interface\\Icons\\" .. (KIND_ICON[info.ctype] or "INV_Misc_QuestionMark")
-    tex:SetTexture(icon)
-    tex._tex = icon
-end
-
-function PO.Fill(f, info, s, wk, hk)
-    local FACE, X = PO.FACE, PO.FACE + 12
-    local W = max(200, min(420, floor(PO.WIDTH * wk + 0.5)))
-    at(f, f.face, "TOPLEFT", 6, 6)
-    setFace(f.face, info)
-    at(f, f.ring, "TOPLEFT", 2, 40)
-    setLevel(f, info)
-
-    at(f, f.band, "TOPLEFT", X, 6)
-    f.band:SetSize(W - X - 8, 18)
-    local count = Layouts.QuestCount(info, s.lines)
-    if count then
-        at(f, f.quest, "TOPRIGHT", W - 12, 8)
-        f.quest:SetText(count)
-        f.quest:Show()
-    else
-        f.quest:Hide()
-    end
-    at(f, f.name, "TOPLEFT", X + 4, 8)
-    f.name:SetWidth(W - X - 16 - (count and width(f.quest, 24) + 6 or 0))
-    setText(f.name, info.name)
-    f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-
-    local y, bh = 28, V(13, hk, 6)
-    placeBar(f, f.bar, X, y, W - X - 8, bh)
-    barText(f, f.bar, X, y, W - X - 8, bh, s.lines)
-    Layouts.SetHealth(f.bar, info, s)
-    y = y + bh + V(5, hk, 3)
-
-    local kind = Layouts.Kind(info, s.lines)
-    local r = rank(info, s.lines)
-    if r then kind = (kind ~= "" and kind .. " · " or "") .. r end
-    at(f, f.sub, "TOPLEFT", X, y)
-    f.sub:SetText(kind)
-    local target = targetText(info, s.lines)
-    if target then
-        at(f, f.target, "TOPRIGHT", W - 8, y)
-        setText(f.target, target)
-        f.target:SetTextColor(Wg.rgb(info.targetColor or T.text))
-        f.target:Show()
-    else
-        f.target:Hide()
-    end
-    y = y + 13 + V(3, hk, 2)
-
-    local list = objectives(info, s.lines)
-    for _, e in ipairs(Layouts.Extras(info, s.lines, { group = true })) do list[#list + 1] = e end
-    for i, q in ipairs(list) do
-        local fs = f.quests:Get(i)
-        at(f, fs, "TOPLEFT", X, y)
-        fs:SetWidth(W - X - 8)
-        setText(fs, q)
-        y = y + V(12, hk, 11)
-    end
-    f.quests:HideFrom(#list + 1)
-    return W, max(FACE + 12, y + 3)
-end
-
---------------------------------------------------------------------------------
--- Bar: the health bar is the card, the name written on it
---------------------------------------------------------------------------------
-
-local BA = { frame = "thin", WIDTH = 230, BOX = 26 }
-Layouts.bar = BA
-
-function BA.Create(f)
-    f.box = solid(f, { 0, 0, 0 }, 0.5)
-    f.level = text(f, 11, T.gold, { outline = "OUTLINE" })
-    f.skull = skull(f, 12)
-    f.bar = bar(f)
-    f.name = text(f, 12, nil, { outline = "OUTLINE", top = true })
-    f.info = text(f, 10, T.dim)
-    f.target = text(f, 10)
-    f.extra = text(f, 10)
-end
-
-function BA.Fill(f, info, s, wk, hk)
-    local BOX = BA.BOX
-    local W = max(160, min(400, floor(BA.WIDTH * wk + 0.5)))
-    local bh = V(22, hk, 14)
-    at(f, f.box, "TOPLEFT", 2, 2)
-    f.box:SetSize(BOX - 2, bh)
-    setLevel(f, info)
-    at(f, f.level, "TOP", BOX / 2 + 1, 2 + floor((bh - 11) / 2))
-    at(f, f.skull, "TOPLEFT", BOX / 2 - 5, 2 + floor((bh - 12) / 2))
-
-    placeBar(f, f.bar, BOX + 2, 3, W - BOX - 5, bh - 2)
-    Layouts.SetHealth(f.bar, info, s, true)
-    local size = min(11, max(8, bh - 8))
-    Wg.SetFont(f.bar.text, size, "OUTLINE")
-    f.bar.text._size = size
-    at(f, f.bar.text, "TOPRIGHT", W - 7, 3 + floor((bh - 2 - size) / 2))
-    f.bar.text:SetShown(s.lines.health)
-    local nsize = min(12, max(9, bh - 8))
-    Wg.SetFont(f.name, nsize, "OUTLINE")
-    f.name._size = nsize
-    at(f, f.name, "TOPLEFT", BOX + 7, 3 + floor((bh - 2 - nsize) / 2))
-    f.name:SetWidth(W - BOX - 7 - 46)
-    setText(f.name, info.name)
-    -- the name sits on the bar, so it keeps its colour but stays readable
-    f.name:SetTextColor(Wg.rgb(info.classColor or (info.reaction == "neutral" and KT.Reaction.neutral) or T.text))
-
-    -- below: what it is, its rank, quest count and guild; the target on the right
-    local bits = {}
-    local kind = Layouts.Kind(info, s.lines)
-    if kind ~= "" then bits[#bits + 1] = kind end
-    local r = rank(info, s.lines)
-    if r then bits[#bits + 1] = paint(r, T.gold) end
-    local count = Layouts.QuestCount(info, s.lines)
-    if count then bits[#bits + 1] = paint(count, T.gold) end
-    if s.lines.guild and info.guild then bits[#bits + 1] = "<" .. info.guild .. ">" end
-    local target = targetText(info, s.lines)
-    local y = bh + 6
-    if target then
-        at(f, f.target, "TOPRIGHT", W - 6, y)
-        setText(f.target, target)
-        f.target:SetTextColor(Wg.rgb(info.targetColor or T.text))
-        f.target:Show()
-    else
-        f.target:Hide()
-    end
-    local extras = Layouts.Extras(info, s.lines, { guild = true })
-    if #bits == 0 and not target and #extras == 0 then
-        f.info:Hide()
-        f.extra:Hide()
-        return W, bh + 4
-    end
-    at(f, f.info, "TOPLEFT", 6, y)
-    f.info:SetWidth(W - 12 - (target and width(f.target, 40) + 8 or 0))
-    f.info:SetText(table.concat(bits, " · "))
-    f.info:SetShown(#bits > 0)
-    y = y + 13
-    -- what else there is (group counts, zone, kills together) on a line of its own
-    if #extras > 0 then
-        at(f, f.extra, "TOPLEFT", 6, y + 1)
-        f.extra:SetWidth(W - 12)
-        f.extra:SetText(table.concat(extras, "  "))
-        f.extra:Show()
-        y = y + 14
-    else
-        f.extra:Hide()
-    end
-    return W, y + 3
-end
-
---------------------------------------------------------------------------------
--- Icons: name and bar, then the details as small icons with a value
---------------------------------------------------------------------------------
-
-local IC = { frame = "thin", MIN = 190 }
-Layouts.icons = IC
-
-local ICON = {
-    target = { "Interface\\CURSOR\\Attack" },
-    quest = { "Interface\\GossipFrame\\ActiveQuestIcon", "Interface\\GossipFrame\\AvailableQuestIcon" },
-    other = { "Interface\\Icons\\INV_Misc_Map_01", "Interface\\Icons\\INV_Misc_Note_01" },
-    friends = { "Interface\\Icons\\Achievement_Reputation_01", "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01" },
-    guild = { "Interface\\Icons\\INV_Shirt_GuildTabard_01", "Interface\\Icons\\INV_Misc_Note_01" },
-}
-
-function IC.Create(f)
-    f.level = text(f, 12, T.gold, { outline = "OUTLINE" })
-    f.skull = skull(f, 13)
-    f.name = text(f, 13)
-    f.tag = tag(f, 8)
-    f.bar = bar(f)
-    f.chips = pool(function() return chip(f) end)
-end
-
-function IC.Fill(f, info, s, wk, hk)
-    local PAD, GAP = 7, 8
-    local lines = s.lines
-    local x = PAD
-    if setLevel(f, info) then
-        at(f, f.skull, "TOPLEFT", x, 6)
-        x = x + 13 + 5
-    else
-        at(f, f.level, "TOPLEFT", x, 7)
-        x = x + width(f.level, 14) + 5
-    end
-    at(f, f.name, "TOPLEFT", x, 6)
-    f.name:SetWidth(0)
-    setText(f.name, info.name)
-    f.name:SetTextColor(Wg.rgb(Layouts.NameColor(info)))
-    x = x + width(f.name, 110)
-    f.tag:Set(Layouts.RankTag(info, lines))
-    if f.tag:IsShown() then
-        at(f, f.tag, "TOPLEFT", x + 5, 8)
-        x = x + 5 + f.tag:GetWidth()
-    end
-    local W = max(floor(IC.MIN * wk + 0.5), x + PAD)
-
-    -- the chips: { icon, value, colour }, in this order
-    local list = {}
-    local function add(icon, value, color) if value ~= nil then list[#list + 1] = { icon, value, color } end end
-    if lines.target and info.target then add(Wg.FirstFile(ICON.target), tostring(info.target), info.targetColor) end
-    local kind = Layouts.Kind(info, lines)
-    if kind ~= "" then
-        local icon = info.isPlayer and "INV_Misc_Head_Human_01" or KIND_ICON[info.ctype] or "INV_Misc_QuestionMark"
-        -- the shortest word for it: the family, the class, or what Kind says
-        local short = info.isPlayer and lines.type and info.className or lines.type and (info.family or info.ctype) or kind
-        add("Interface\\Icons\\" .. icon, short, T.dim)
-    end
-    add(Wg.FirstFile(ICON.quest), Layouts.QuestCount(info, lines), T.gold)
-    for _, c in ipairs(Layouts.GroupCounts(info, lines)) do add(Wg.FirstFile(ICON.quest), c, T.dim) end
-    for _, o in ipairs(otherLines(info, lines)) do add(Wg.FirstFile(ICON.other), o, T.text) end
-    if lines.friends and info.together then add(Wg.FirstFile(ICON.friends), info.together, T.teal) end
-    if lines.guild and info.guild then add(Wg.FirstFile(ICON.guild), "<" .. info.guild .. ">", T.text) end
-    for i, c in ipairs(list) do f.chips:Get(i):Set(c[1], c[2], c[3]) end
-    f.chips:HideFrom(#list + 1)
-
-    -- one row of chips if they fit a card up to MAX wide, more rows if not
-    local MAX = floor(300 * wk + 0.5)
-    local rowW = PAD
-    for i = 1, #list do rowW = rowW + f.chips[i]:GetWidth() + GAP end
-    W = max(W, min(MAX, rowW - GAP + PAD))
-
-    local y, bh = 6 + V(19, hk, 16), V(8, hk, 4)
-    local bw = W - PAD * 2 - 34
-    placeBar(f, f.bar, PAD, y, bw, bh)
-    Layouts.SetHealth(f.bar, info, s, true)
-    Wg.SetFont(f.bar.text, 9, "OUTLINE")
-    f.bar.text._size = 9
-    at(f, f.bar.text, "TOPLEFT", PAD + bw + 4, y + floor((bh - 9) / 2))
-    f.bar.text:SetShown(lines.health)
-    y = y + bh + V(6, hk, 4)
-    if #list == 0 then return W, y + 2 end
-
-    local cx = PAD
-    for i = 1, #list do
-        local c = f.chips[i]
-        if cx > PAD and cx + c:GetWidth() > W - PAD then
-            cx = PAD
-            y = y + 16
-        end
-        at(f, c, "TOPLEFT", cx, y)
-        cx = cx + c:GetWidth() + GAP
-    end
-    return W, y + 14 + 5
-end
-
---------------------------------------------------------------------------------
--- The building blocks, for the looks in Slate.lua
---------------------------------------------------------------------------------
-
+-- the parts, for the looks in Slate.lua
 Layouts.kit = {
     width = width, setText = setText, paint = paint, V = V, part = part, at = at, text = text, solid = solid,
-    bar = bar, placeBar = placeBar, barText = barText, skull = skull, setLevel = setLevel, chip = chip, pool = pool,
-    otherLines = otherLines, count = count,
+    bar = bar, placeBar = placeBar, barText = barText, skull = skull, setLevel = setLevel, chip = chip,
+    pool = pool, otherLines = otherLines,
 }

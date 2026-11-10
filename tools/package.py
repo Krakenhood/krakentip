@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """python3 tools/package.py: builds dist/Krakentip-<version>.zip, ready to unzip
 into the game's Interface\\AddOns folder. It holds a Krakentip folder with the
-.toc, every file the .toc lists, the README and the LICENSE, nothing else."""
+.toc, every file the .toc lists, the textures in media/, the README and the
+LICENSE, nothing else."""
 import os, re, sys, zipfile
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,6 +17,9 @@ if missing:
 os.makedirs(os.path.join(root, 'dist'), exist_ok=True)
 out = os.path.join(root, 'dist', f'Krakentip-{version}.zip')
 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
-    for name in ['Krakentip.toc'] + files + ['README.md', 'LICENSE']:
+    media = sorted('media/' + f for f in os.listdir(os.path.join(root, 'media')) if f.endswith('.tga'))
+    if not media:
+        sys.exit('no textures in media/: run node tools/media.js')
+    for name in ['Krakentip.toc'] + files + media + ['README.md', 'LICENSE']:
         z.write(os.path.join(root, name), 'Krakentip/' + name)
 print('wrote', os.path.relpath(out, root))

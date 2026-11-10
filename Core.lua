@@ -126,13 +126,13 @@ KT.POSITIONS = { "mouse", "tooltip" }
 KT.FIELDS = {
     { key = "type", label = "Type, or race and class", hint = "\"Beast · Wolf\", \"Night Elf · Mage\"." },
     { key = "title", label = "NPC title", hint = "\"Innkeeper\", \"Weapon Merchant\"." },
-    { key = "rank", label = "Elite, rare, boss", hint = "The badge, or the + after the level on Plate." },
+    { key = "rank", label = "Elite, rare, boss", hint = "The frame's colour and wing, the + after the level, the word." },
     { key = "health", label = "Health numbers", hint = "The numbers or the percentage on the bar. The bar itself always shows." },
     { key = "target", label = "Who it's attacking", hint = "\"You\" in red when it's coming for you." },
-    { key = "quests", label = "Your quest progress", hint = "Your objectives for this creature, or your count (\"3/8\") on the small looks." },
-    { key = "group", label = "Your group's quests", hint = "Each group member's progress for this creature, under their name (\"Jokke 5/8\")." },
+    { key = "quests", label = "Your quest progress", hint = "Your count for this creature (\"3/8\"), in the ring or as a line." },
+    { key = "group", label = "Your group's quests", hint = "Each group member's count for this creature, a small bar each." },
     { key = "other", label = "Zone and other lines", hint = "What else the game's tooltip says: a party member's zone when they're elsewhere, \"Skinnable\", \"AFK\"." },
-    { key = "guild", label = "Guild", hint = "A player's guild.", off = { minimal = true, plate = true, bar = true, icons = true } },
+    { key = "guild", label = "Guild", hint = "A player's guild." },
     { key = "friends", label = "Krakenfriends kills", hint = "How often you and your Krakenfriends partner have killed this creature. Only with Krakenfriends loaded." },
 }
 
@@ -162,20 +162,21 @@ function KT:ResetFields(style)
     self.db.settings.fields[style or self.db.settings.style] = nil
     self:Fire("SETTINGS")
 end
--- the four Slate looks first (Slate.lua), then the first eight (Layouts.lua)
-KT.STYLES = { "whisper", "glance", "ledger", "banner", "regular", "mid", "minimal", "classic", "plate", "portrait", "bar", "icons" }
+-- the four looks (Slate.lua), smallest first; the twelve of 0.7 live on the legacy branch
+KT.STYLES = { "whisper", "glance", "ledger", "banner" }
+KT.DEFAULT_STYLE = "glance"
 
 local DEFAULTS = {
     settings = {
         enabled = true,     -- false: units get the game's own tooltip
         shiftLedger = true, -- holding Shift opens the Ledger, whatever the look
         combatGlance = true, -- the Ledger shrinks to Glance in combat
-        style = "regular",  -- one of KT.STYLES (Layouts.lua)
+        style = "glance",   -- one of KT.STYLES (Slate.lua)
         position = "mouse", -- "mouse": next to the cursor; "tooltip": where the game puts tooltips (Edit Mode moves it)
         scale = 1,
         minimap = { angle = 200, hide = false },
         dims = {},          -- per look: { w = 1, h = 1 }, its width and height factors
-        bar = { texture = "smooth", color = "reaction" }, -- KT.BarTextures, KT.BarColors
+        bar = { texture = "slate", color = "health" }, -- KT.BarTextures, KT.BarColors
         fields = {},        -- per look: { [field key] = true/false }, where it differs from KT.FIELDS' defaults
         window = {},
     },
@@ -188,8 +189,20 @@ function KT:LoadDB()
     self.db = db
     local s = db.settings
     if s.position ~= "mouse" and s.position ~= "tooltip" then s.position = "mouse" end
-    if not KT.STYLE_LABEL[s.style] then s.style = "regular" end
     s.players = nil -- from 0.1.0: every unit gets the card now
+    -- 0.8: the four looks are the card now. A look from before becomes Glance,
+    -- the bar takes the new look's shine and colour, and what was set for
+    -- looks that are gone goes with them.
+    if (tonumber(s.schema) or 0) < 2 then
+        s.schema = 2
+        if s.style ~= "whisper" and s.style ~= "glance" and s.style ~= "ledger" and s.style ~= "banner" then s.style = KT.DEFAULT_STYLE end
+        s.bar = { texture = "slate", color = "health" }
+        s.toldSlate = nil
+    end
+    if not KT.STYLE_LABEL[s.style] then s.style = KT.DEFAULT_STYLE end
+    for _, t in ipairs({ s.dims, s.fields }) do
+        for key in pairs(t) do if not KT.STYLE_LABEL[key] then t[key] = nil end end
+    end
     -- up to 0.5: one set of ticks for every look; what was switched off stays off in each
     if type(s.lines) == "table" then
         for _, style in ipairs(KT.STYLES) do
@@ -213,10 +226,10 @@ end)
 KT:On("PLAYER_LOGIN", function()
     if not KT.db then KT:LoadDB() end
     KT:Fire("SETUP")
-    -- once: the Slate looks are new
-    if not KT.db.settings.toldSlate then
-        KT.db.settings.toldSlate = true
-        KT:Print("new: the Slate looks. Try |cffffd100/kt ledger|r, |cffffd100/kt glance|r, |cffffd100/kt whisper|r or |cffffd100/kt banner|r, or see all with |cffffd100/kt compare|r.")
+    -- once: the card has four new looks
+    if not KT.db.settings.told08 then
+        KT.db.settings.told08 = true
+        KT:Print("new card: Glance. Hold |cffffd100Shift|r for the Ledger. Other looks: |cffffd100/kt whisper|r, |cffffd100/kt ledger|r, |cffffd100/kt banner|r, or all side by side with |cffffd100/kt compare|r.")
     end
 end)
 
@@ -228,41 +241,29 @@ local HELP = {
     { "/kt", "open or close the options" },
     { "/kt mouse", "show the card next to the mouse" },
     { "/kt tooltip", "show the card where the game puts tooltips (move that in Edit Mode)" },
-    { "/kt style", "switch to the next look (or /kt style plate, see /kt styles)" },
+    { "/kt style", "switch to the next look (or /kt style ledger, see /kt styles)" },
     { "/kt styles", "list the looks" },
-    { "/kt ledger", "pick a look by its name: whisper, glance, ledger, banner, regular, ..." },
+    { "/kt ledger", "pick a look by its name: whisper, glance, ledger, banner" },
     { "/kt shift", "holding Shift opens the Ledger, or not" },
     { "/kt combat", "the Ledger shrinks to Glance in combat, or not" },
     { "/kt show group", "show or hide a field on this look (type, title, rank, health, target, quests, group, other, guild, friends)" },
     { "/kt compare", "see every look side by side; hover a unit to fill them" },
     { "/kt width 1.2", "make this look wider or narrower (0.6 to 1.6)" },
     { "/kt height 0.8", "make this look taller or lower (0.6 to 1.6)" },
-    { "/kt bar flat", "the bar's texture: smooth, flat, raid, skill" },
-    { "/kt barcolor health", "the bar's colour: reaction, health, gold" },
+    { "/kt bar flat", "the bar's texture: slate, smooth, flat, raid, skill" },
+    { "/kt barcolor reaction", "the bar's colour: health, reaction, gold" },
     { "/kt scale 1.2", "make the card bigger or smaller (0.6 to 1.6)" },
     { "/kt sample", "show or hide a sample card, to try the settings" },
     { "/kt blizzard", "switch between the card and the game's own unit tooltips" },
     { "/kt minimap", "show or hide the minimap button" },
 }
 
-KT.STYLE_LABEL = {
-    whisper = "Whisper", glance = "Glance", ledger = "Ledger", banner = "Banner",
-    regular = "Regular", mid = "Mid", minimal = "Minimal", classic = "Classic",
-    plate = "Plate", portrait = "Portrait", bar = "Bar", icons = "Icons",
-}
+KT.STYLE_LABEL = { whisper = "Whisper", glance = "Glance", ledger = "Ledger", banner = "Banner" }
 KT.STYLE_HINT = {
     whisper = "Two short lines of text at the cursor.",
     glance = "A bar and two rows, for fighting.",
     ledger = "The full read, like the game's item tooltips.",
     banner = "Hangs under the creature's nameplate.",
-    regular = "The full card: a big bar and a line for each thing.",
-    mid = "Name, type and target at a glance, a thin bar.",
-    minimal = "Two short lines: name, then bar, type, quest and target.",
-    classic = "The game's own tooltip, line by line, in gold.",
-    plate = "Small and centred, like a nameplate.",
-    portrait = "Like the target frame, with the unit's face.",
-    bar = "The health bar is the card, the name on it.",
-    icons = "Name and bar, the details as small icons.",
 }
 
 KT.POSITION_LABEL = {
@@ -416,7 +417,7 @@ SlashCmdList.KRAKENTIP = function(msg)
     elseif commands[cmd] then
         commands[cmd](arg)
     elseif KT.STYLE_LABEL[cmd] then
-        KT:SetStyle(cmd) -- /kt plate, /kt minimal
+        KT:SetStyle(cmd) -- /kt ledger, /kt whisper
     else
         commands.help()
     end

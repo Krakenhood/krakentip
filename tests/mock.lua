@@ -55,16 +55,24 @@ function Object:SetText(t)
     rawset(self, "_text", t)
 end
 function Object:SetFormattedText(fmt, ...)
-    for i = 1, select("#", ...) do if rawequal(select(i, ...), SECRET) then rawset(self, "_text", "<secret>"); return end end
-    rawset(self, "_text", fmt:format(...))
+    local args = { ... }
+    for i = 1, select("#", ...) do
+        if rawequal(args[i], SECRET) then
+            -- the screenshot tool shows a number where the game would write one
+            if not SECRET_STANDIN then rawset(self, "_text", "<secret>"); return end
+            args[i] = SECRET_STANDIN
+        end
+    end
+    rawset(self, "_text", fmt:format(table.unpack(args, 1, select("#", ...))))
 end
 function Object:GetText() return self._text end
 function Object:SetTextColor(r, g, b) rawset(self, "_color", { r, g, b }) end
 function Object:GetTextColor() local c = self._color or { 1, 1, 1 }; return c[1], c[2], c[3] end
--- about as wide as the game's font draws it: half the size per letter, colour codes left out
+-- about as wide as the game's font draws it: half the size per letter, colour
+-- codes left out, an inline icon (|T...|t) as wide as two letters
 function Object:GetStringWidth()
     if rawequal(self._text, SECRET) then return SECRET end
-    local t = tostring(self._text or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    local t = tostring(self._text or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "II")
     return math.floor(utf8.len(t) * (self._size or 12) * 0.52 + 0.5)
 end
 function Object:SetAlpha(a) rawset(self, "_alpha", a) end

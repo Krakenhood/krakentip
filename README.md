@@ -1,131 +1,104 @@
 # Krakentip
 
-Creatures and players get a card in the game's own style (gold border, dark stone, the fantasy font) instead of the game's unit tooltip, for **World of Warcraft: Forever**, like the rest of the Kraken family. Friend or foe, NPC or player: every unit gets the card. **Every other tooltip stays as it is**: items, spells, menus, buttons and bags keep the game's tooltip.
+Creatures and players get a card in the look of the game's own tooltips instead of the game's unit tooltip, for **World of Warcraft: Forever**, like the rest of the Kraken family. Friend or foe, NPC or player: every unit gets the card. **Every other tooltip stays as it is**: items, spells, menus, buttons and bags keep the game's tooltip.
 
-![The card next to the mouse](assets/screenshots/1-card-at-mouse.png)
+![Glance, next to the mouse](assets/screenshots/1-card-at-mouse.png)
 
-## Twelve styles
+## Four looks, one family
 
-### The Slate looks
+Designed from a blank page: the concept is [docs/clean-slate.html](docs/clean-slate.html) (the "Krakentip Clean Slate" artifact), and [docs/cards.html](docs/cards.html) shows the same units as the addon draws them. Every look carries what the game's own tooltip gives: name, level, type (race and class), elite, rare or boss, health, quest progress and who it's after; guild, faction and PvP for players; the title for NPCs. The small looks write it shorter; none leaves it out.
 
-Four styles designed from a blank page (the concept: [docs/clean-slate.html](docs/clean-slate.html)), in the look of the game's own tooltips: a dark ground, the tooltip's thin edge, a coloured stripe on the left (hostile, neutral, friendly, tapped, or the player's class), the frame gold for elites, silver for rares and red for bosses, and a red glow when the unit is after you. Each carries what the game's tooltip gives: name, level, type (race and class), rank, health, quest progress and target; guild, faction and PvP for players; the title for NPCs.
+| Look | For | What it shows |
+| --- | --- | --- |
+| **Whisper** | Players who barely want a tooltip | Two short lines at the cursor: level, name, YOU when it's after you, your quest count, the PvP flag; then rank and type, guild, health, the target, a party member's zone, your party's counts (J5 T8). A health line along the bottom edge. |
+| **Glance** (the default) | Combat, grinding, dungeons | Level in its box, name and the quest ring; the bar with the number and the percentage; the target and the type; guild and faction for players; a small bar with a count for each party member on the quest. |
+| **Ledger** | Questing, towns, other players | The full read, like the game's item tooltips: every line, with the party's quest as a short table (You 3/8, Jokke 5/8, ...). |
+| **Banner** | Playing with nameplates on | Hangs under the creature's nameplate, which already shows name and health: level, rank, quest ring, the party's counts and the target, with the type below. Without a nameplate (nameplates off, a unit frame, a party member far away) it's Glance at the cursor. |
 
-| Style | What it looks like |
-| --- | --- |
-| **Whisper** | Two short lines of text at the cursor: level, name, YOU, your count; then rank and type, health, target, guild, the party's counts. A health line along the bottom edge. |
-| **Glance** | For fighting: level, name and a quest ring; the bar with the number and percentage; target and type; guild and faction for players; one small bar with a count per party member. |
-| **Ledger** | The full read, like the game's item tooltips: every line, and a party's quest as a short table (You 3/8, Jokke 5/8, ...). |
-| **Banner** | Hangs under the creature's nameplate, which already shows name and health: level, rank, quest ring, the party's counts and the target, with the type below. Without a nameplate (nameplates off, a unit frame, a party member far away) it's Glance at the cursor. |
+![The four looks for a quest wolf that is after you](assets/screenshots/2-the-four.png)
 
-Two things work across all looks, both on by default:
+### How they work together
 
 - **Hold Shift for the Ledger.** While you hold Shift, any look becomes the Ledger. Let go and your look comes back. (`/kt shift`)
 - **The Ledger shrinks in combat.** When your look is the Ledger, it's Glance while you fight. (`/kt combat`)
 
-NPCs that sell, train or fly you show what they do (Hearthstone, Food & drink, Flights, Bank, Training, ...) instead of a health bar, read from their English title. Their name loses the title the role already says ("Boorand Plainswind", the innkeeper).
+Both are on by default. Switch looks with `/kt whisper`, `/kt glance`, `/kt ledger` or `/kt banner`, step through them in the options (< and >), or right-click the minimap button. `/kt compare` (or **Compare all** in the options, or shift-click the minimap button) shows all four side by side: a sample wolf until you hover a unit, then that unit. Click a look to use it.
 
-### The first eight
+![Your whole party on the quest](assets/screenshots/3-party.png)
 
-| Style | What it looks like |
-| --- | --- |
-| **Regular** | The full card: level in a gold ring, a big bar with the numbers, a line for each thing, the quest lines. |
-| **Mid** | Name, type and target at a glance, a thin bar, the quest objectives. |
-| **Minimal** | Two short lines: level, name and badge; then a small bar, the type, the quest count and the target. |
-| **Classic** | The game's own tooltip, line by line ("Level 24 Beast · Wolf (Elite)"), in the gold frame. |
-| **Plate** | Small and centred, like a nameplate: name, level with a + for elites, bar, then type, quest count and target. |
-| **Portrait** | Like the game's target frame: the unit's face in a ring, its level, a name band with the quest count, the bar. |
-| **Bar** | The health bar is the card, with the name written on it; type, rank, quest count and target below. |
-| **Icons** | Name and bar, then the details as small icons with a value (target, type, quest, kills, guild). |
+## The rules they share
 
-Every style can show every field below; you choose which, per style (see **What's on the card**).
+- **The edge says who it is to you.** A coloured stripe on the left: red hostile, yellow neutral, green friendly, grey tapped by someone else. Players get their class colour.
+- **The frame says what kind.** Gold with a gold wing for elites, silver with a silver wing for rares, red with a skull for bosses. On the small looks a + after the level means elite.
+- **The level's colour says how hard**, in the game's own colours: grey trivial, green easy, yellow even, orange hard, red very hard. No words needed.
+- **A red glow when it's after you.** The frame breathes red while the unit is attacking you.
+- **Everything has its place.** Level top left, quest top right, health in the middle, the target below it. When something is missing its space closes, but nothing swaps places.
+- **The quest ring** fills as you go: gold, and green when you're done.
+- **Friends get different questions.** NPCs that sell, train or fly you show what they do (Hearthstone, Food & drink, Flights, Bank, Training, ...) instead of a health bar, read from their English title, and their name loses the title the role already says ("Boorand Plainswind", the innkeeper). A party member somewhere else shows where they are.
 
-**Compare them**: `/kt compare` (or **Compare all** in the options, or shift-click the minimap button) opens a window with all twelve side by side. It shows a sample wolf until you hover a unit; then every style shows that unit, and keeps it after the mouse leaves. Click a style to use it.
+![A rare, a boss, a tapped quilboar and an innkeeper](assets/screenshots/5-situations.png)
 
-To switch: step through them in the options (< and >), `/kt style ledger` or just `/kt ledger`, or right-click the minimap button for the next one. `/kt styles` lists them.
-
-![All twelve styles with the sample wolf](assets/screenshots/2-compare-creature.png)
-
-![All twelve styles with a friendly player](assets/screenshots/3-compare-player.png)
-
-## Width, height and the bar
-
-Each style has its own **width** and **height** (60% to 160%), in the options or with `/kt width 0.8` and `/kt height 1.2` for the style in use. Height stretches the bar and the space between the lines; the text keeps its size. **Scale** makes the whole card bigger or smaller.
-
-The **health bar** has a texture (Smooth, Flat, Raid, Skill bar) and a colour: foe or friend (red for what you can attack, green for the rest), by health (green, to yellow, to red as it drops) or gold.
-
-![Sizes and bars](assets/screenshots/4-sizes-and-bars.png)
-
-## The card
-
-- **Level**, coloured by how hard the creature is for you. Bosses and creatures far above you get a skull.
-- **Name** in the game's colours: red for hostile, yellow for neutral, green for friendly, grey when someone else has tagged it. Players in their class colour.
-- **What it is**: "Beast · Wolf", an NPC's title ("Innkeeper · Humanoid"), a player's race and class. A badge for **Elite**, **Rare**, **Rare Elite** and **Boss**.
-- **Health**: red for what you can attack, green for everyone else.
-- **Targeting**: who it's attacking. "You" in red when it's coming for you, players in their class colour.
-- **Guild** for players.
-- **Your quest progress**: your objectives for this creature, or your count ("3/8") on the small styles.
-- **Your group's quests**: each group member's progress, under their name, or as "Jokke 5/8" on the small styles.
-- **Zone and other lines**: what else the game's tooltip says, like a party member's zone when they're somewhere else, "Skinnable" or "AFK".
-- **Killed with your friend**: with [Krakenfriends](https://github.com/Krakenhood/krakenfriends) loaded, how often you two have killed this creature. It only shows when Krakenfriends is loaded and you've killed it together; the tick in the options turns it off altogether.
-
-The card keeps itself up to date while you hover: health, who it's attacking, dead or tagged.
+![Players](assets/screenshots/6-players.png)
 
 ## What's on the card
 
-Each style has its own list of what it shows, in the options under **On the card**, with a **Defaults** button to put it back: type (or race and class), NPC title, elite/rare/boss, health numbers, who it's attacking, your quest progress, your group's quests, zone and other lines, guild, Krakenfriends kills. The name, the level and the bar always show. `/kt show group` switches one field of the style in use.
+Each look has its own list of what it shows, in the options under **On the card**, with a **Defaults** button to put it back: type (or race and class), NPC title, elite/rare/boss, health numbers, who it's attacking, your quest progress, your group's quests, zone and other lines, guild, Krakenfriends kills. The name, the level and the bar always show; by default every look shows everything. `/kt show group` switches one field of the look in use.
 
-By default every style shows everything, except that the small styles (Minimal, Plate, Bar, Icons) leave out the guild. Where a small style has no room on its own lines, the extra fields go on a line of their own (Minimal, Plate, Bar) or become more icons (Icons).
+- **Other lines** are what else the game's tooltip says, like "Skinnable" on a corpse. Glance and the Ledger show them; Whisper and Banner keep to the essentials (a party member's zone still shows).
+- **Killed with your friend**: with [Krakenfriends](https://github.com/Krakenhood/krakenfriends) loaded, how often you two have killed this creature. It only shows when Krakenfriends is loaded and you've killed it together.
 
-![A party member in another zone, and a wolf the group needs](assets/screenshots/8-group.png)
+The card keeps itself up to date while you hover: health, who it's attacking, dead or tagged.
+
+## Width, height and the bar
+
+Each look has its own **width** and **height** (60% to 160%), in the options or with `/kt width 0.8` and `/kt height 1.2` for the look in use. **Scale** makes the whole card bigger or smaller.
+
+The **health bar** has a texture (Slate, the default, flat with a shine; Smooth, Flat, Raid, Skill bar) and a colour: by health (green, to yellow, to red as it drops; the default), foe or friend (red for what you can attack, green for the rest) or gold.
+
+![Sizes](assets/screenshots/4-sizes.png)
 
 ## Where it shows
 
-Two choices, in the options (`/kt`) or by command:
-
 - **Next to the mouse** (`/kt mouse`, the default). The card follows the cursor, so your eyes stay on the fight. Near the right edge of the screen it flips to the left of the cursor.
-- **Where the game puts tooltips** (`/kt tooltip`). The card sits where the game's tooltip would be. Move that spot in Edit Mode, like any tooltip.
+- **Where the game puts tooltips** (`/kt tooltip`). Move that spot in Edit Mode, like any tooltip.
+- **Banner** always hangs under the nameplate, whichever you pick.
 
-**Action targeting**: when you face a creature and the game picks it as your soft target, it shows that creature's tooltip without the mouse. Krakentip shows the card for it at the tooltip spot, and it goes when you face something else.
-
-![The card where the game puts tooltips](assets/screenshots/5-card-tooltip-spot.png)
-
-![A boss and a neutral creature](assets/screenshots/6-boss-and-neutral.png)
+**Action targeting**: when you face a creature and the game picks it as your soft target, Krakentip shows its card at the tooltip spot, and it goes when you face something else.
 
 ## Options
 
-`/kt` opens the options window: where the card shows, its style, that style's width and height, the health bar, what's on the card and the scale. It's also under Options > AddOns > Krakentip, and the minimap button opens it (click; right-click switches the style, shift-click opens Compare).
+`/kt` opens the options window: where the card shows, its look, that look's width and height, the health bar, what's on the card, Shift and combat, and the scale. It's also under Options > AddOns > Krakentip, and the minimap button opens it (click; right-click switches the look, shift-click opens Compare).
 
-**Show a sample card** puts a pretend Timberling Ravager on screen, so you can try the position, the style, the size and the lines without a creature around. It stays until you click again or close the options.
+**Show a sample card** puts a pretend Timberling Ravager on screen, so you can try the position, the look, the size and the lines without a creature around.
 
 ![The options with the sample card](assets/screenshots/7-options.png)
-
-## Still open
-
-Tighter versions of Minimal and Icons are being designed: see [docs/design-notes.md](docs/design-notes.md).
 
 ## How it works
 
 The game builds unit tooltips (creatures and players) on their own path, apart from the tooltips for items, spells, menus and buttons. Krakentip only steps in on that path: the game's unit tooltip is hidden before it's drawn, and the card shows instead. The moment the game's tooltip is taken for anything else, it's left alone, so nothing else can look different.
 
-**Secret values**: Forever can hide some numbers from addons, an enemy's health in particular. The health bar still fills, because the game lets status bars show hidden numbers. The numbers on it then show only if the game can write them itself, and stay empty otherwise. Lines that need a hidden value (who it's attacking, for example) are left out.
+The wing, the quest ring, the glow, the Banner's notch and the small icons in the text (the target arrow, the PvP flag, the zone pin) are the addon's own textures in `media/`, drawn from the concept page's shapes by `tools/media.js`. The skull and the NPC icons are the game's.
+
+**Secret values**: Forever can hide some numbers from addons, an enemy's health in particular. The health bar still fills, because the game lets status bars show hidden numbers, and the percentage is written by the game itself. Lines that need a hidden value are left out.
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
 | `/kt` | Open or close the options |
-| `/kt mouse` | Show the card next to the mouse |
-| `/kt tooltip` | Show the card where the game puts tooltips |
-| `/kt style` | Switch to the next style, or `/kt style plate` (or just `/kt plate`) |
-| `/kt styles` | List the twelve styles |
-| `/kt compare` | All twelve styles side by side; hover a unit to fill them |
+| `/kt whisper`, `/kt glance`, `/kt ledger`, `/kt banner` | Use that look |
+| `/kt style` | Switch to the next look |
+| `/kt styles` | List the four looks |
+| `/kt compare` | All four side by side; hover a unit to fill them |
 | `/kt shift` | Holding Shift opens the Ledger, or not |
 | `/kt combat` | The Ledger shrinks to Glance in combat, or not |
-| `/kt width 0.8` | This style's width (0.6 to 1.6) |
-| `/kt height 1.2` | This style's height (0.6 to 1.6) |
-| `/kt show group` | Show or hide a field on this style: type, title, rank, health, target, quests, group, other, guild, friends |
-| `/kt bar flat` | The bar's texture: smooth, flat, raid, skill (no name: the next one) |
-| `/kt barcolor health` | The bar's colour: reaction, health, gold |
+| `/kt mouse` | Show the card next to the mouse |
+| `/kt tooltip` | Show the card where the game puts tooltips |
+| `/kt width 0.8` | This look's width (0.6 to 1.6) |
+| `/kt height 1.2` | This look's height (0.6 to 1.6) |
+| `/kt show group` | Show or hide a field on this look: type, title, rank, health, target, quests, group, other, guild, friends |
+| `/kt bar flat` | The bar's texture: slate, smooth, flat, raid, skill (no name: the next one) |
+| `/kt barcolor reaction` | The bar's colour: health, reaction, gold |
 | `/kt scale 1.2` | Make the card bigger or smaller (0.6 to 1.6) |
 | `/kt sample` | Show or hide the sample card |
 | `/kt blizzard` | Switch between the card and the game's own unit tooltips |
@@ -134,10 +107,14 @@ The game builds unit tooltips (creatures and players) on their own path, apart f
 
 ## Install
 
-Unzip `Krakentip-<version>.zip` into the game's `Interface\AddOns` folder, so that you have `Interface\AddOns\Krakentip\Krakentip.toc`. Or copy this repository's addon files into a folder named `Krakentip` there. `python3 tools/package.py` builds the zip into `dist/`.
+Unzip `Krakentip-<version>.zip` into the game's `Interface\AddOns` folder, so that you have `Interface\AddOns\Krakentip\Krakentip.toc` and `Interface\AddOns\Krakentip\media\`. Or copy this repository's addon files (the `.lua` files, `Krakentip.toc` and `media/`) into a folder named `Krakentip` there. `python3 tools/package.py` builds the zip into `dist/`.
+
+Coming from 0.7: your look becomes Glance unless it was already one of these four, and the bar takes the Slate texture and the health colour. The twelve looks of 0.7 (Regular, Mid, Minimal, Classic, Plate, Portrait, Bar, Icons and the first Slate four) are kept on the [`legacy` branch](https://github.com/Krakenhood/krakentip/tree/legacy).
 
 ## Development
 
 - `cd tests && npm install && npm test` runs the addon headless against a mock of the game.
-- `node tools/screenshots/shots.js` hovers a few units in each style through the real code and redraws `assets/screenshots/`.
-- `node tools/screenshots/shots.js --page <file>` writes every style for every case on one page instead. It's published as the "Krakentip Cards" artifact (https://claude.ai/artifact/McwqBjHKTjQyfNXp7Kcoqq) and republished after each design change. The layout follows the addon; fonts, textures and the creatures are stand-ins.
+- `node tools/media.js` draws the textures in `media/` (and the PNG copies the screenshot tool uses).
+- `node tools/screenshots/shots.js` hovers the concept page's units in each look through the real code and redraws `assets/screenshots/`.
+- `node tools/screenshots/shots.js --page docs/cards.html` writes every look for every case on one page. It's published as the "Krakentip Cards" artifact (https://claude.ai/artifact/McwqBjHKTjQyfNXp7Kcoqq) and republished after each design change. The layout and the textures are the addon's; the fonts are stand-ins for the game's.
+- `docs/clean-slate.html` is the concept, as published in the "Krakentip Clean Slate" artifact (https://claude.ai/artifact/AhDed9PARByJ6kmFthTBGk).

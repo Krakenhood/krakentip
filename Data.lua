@@ -1,4 +1,4 @@
-local _, KT = ...
+local ADDON, KT = ...
 
 --------------------------------------------------------------------------------
 -- The look: the game's own style, like the rest of the Kraken family. Gold on
@@ -35,6 +35,9 @@ KT.Files = {
     titleFont = "Fonts\\MORPHEUS.TTF",
 }
 
+-- The addon's own textures (media/, drawn by tools/media.js).
+function KT.Media(name) return "Interface\\AddOns\\" .. ADDON .. "\\media\\" .. name .. ".tga" end
+
 -- The badge next to the creature type.
 KT.Classification = {
     elite = "ELITE",
@@ -48,22 +51,22 @@ KT.Classification = {
 KT.Reaction = {
     hostile  = { 1.00, 0.29, 0.23 },
     neutral  = { 1.00, 0.85, 0.20 },
-    friendly = { 0.35, 0.95, 0.35 },
+    friendly = { 0.28, 0.88, 0.31 },
 }
 
 -- How hard a creature is for you, by the level difference: a word and the
 -- colour the level is shown in. `range` is how far below you a creature still
 -- gives experience; below that it's trivial.
 function KT.Difficulty(level, mine, range)
-    if not level or level < 0 then return "Deadly", { 1.00, 0.10, 0.10 }, nil end
+    if not level or level < 0 then return "Deadly", { 1.00, 0.16, 0.16 }, nil end
     if not mine then return nil end
     local diff = level - mine
     range = range or 5
-    if diff >= 5 then return "Very hard", { 1.00, 0.10, 0.10 }, diff end
-    if diff >= 3 then return "Hard", { 1.00, 0.50, 0.25 }, diff end
-    if diff >= -2 then return "Even", { 1.00, 0.82, 0.00 }, diff end
+    if diff >= 5 then return "Very hard", { 1.00, 0.16, 0.16 }, diff end
+    if diff >= 3 then return "Hard", { 1.00, 0.54, 0.24 }, diff end
+    if diff >= -2 then return "Even", { 1.00, 0.89, 0.23 }, diff end
     if diff >= -range then return "Easy", { 0.25, 0.75, 0.25 }, diff end
-    return "Trivial", { 0.55, 0.55, 0.55 }, diff
+    return "Trivial", { 0.62, 0.62, 0.62 }, diff
 end
 
 -- The pretend creature for the sample card.

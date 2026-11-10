@@ -1,6 +1,6 @@
 # Design notes: condensed Minimal and Icons
 
-Status: **open**. Bernhard likes Minimal and Icons most and wants them reworked into tighter versions. Nothing below is built yet; all eight styles stay as they are until the choice is made.
+Status: **set aside**. These were proposals for the looks of 0.7 (Minimal and Icons), which now live on the `legacy` branch. From 0.8 the card is the four Clean Slate looks (docs/clean-slate.html), and Whisper and Glance are the tight ones.
 
 ![The proposals](condensed-proposals.png)
 

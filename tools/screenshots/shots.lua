@@ -1,5 +1,5 @@
--- Hovers a few creatures headless and records what the card shows, as JSON for
--- shots.js to draw. Runs on tests/mock.lua.
+-- Hovers the concept page's units headless in every look and records what the
+-- card shows, as JSON for shots.js to draw. Runs on tests/mock.lua.
 
 local function json(v)
     local t = type(v)
@@ -23,18 +23,53 @@ end
 local NS = {}
 for _, name in ipairs(TOC) do assert(load(FILES[name], "@" .. name))("Krakentip", NS) end
 local KT = NS
+RAID_CLASS_COLORS.ROGUE = RAID_CLASS_COLORS.ROGUE or { r = 1, g = 0.96, b = 0.41 }
+RAID_CLASS_COLORS.PRIEST = RAID_CLASS_COLORS.PRIEST or { r = 1, g = 1, b = 1 }
+RAID_CLASS_COLORS.HUNTER = RAID_CLASS_COLORS.HUNTER or { r = 0.67, g = 0.83, b = 0.45 }
+
+-- you: Krakenhood, a level 21 warrior, in a party with Jokke, Thalianne, Mira and Brokk
 UNITS.player = { guid = "Player-1-0000AAAA", name = "Krakenhood", class = "WARRIOR", className = "Warrior", level = 21, player = true }
-UNITS.wolf = {
-    guid = "Creature-0-1-2-3-4521-000ABC", name = "Timberling Ravager", level = 24, ctype = "Beast", family = "Wolf",
-    cls = "elite", hostile = true, hp = 1116, hpMax = 1800, target = "player",
-    questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 } },
+UNITS.party1 = { guid = "Player-1-0000EEEE", name = "Jokke", class = "ROGUE", player = true, reaction = 5 }
+UNITS.party2 = { guid = "Player-1-0000EEEF", name = "Thalianne", class = "WARRIOR", player = true, reaction = 5 }
+UNITS.party3 = { guid = "Player-1-0000EEF0", name = "Mira", class = "PRIEST", player = true, reaction = 5 }
+UNITS.party4 = { guid = "Player-1-0000EEF1", name = "Brokk", class = "HUNTER", player = true, reaction = 5 }
+UNITS.thalianne = UNITS.party2
+UNITS.sneakystab = { guid = "Player-1-0000CCCC", name = "Sneakystab", class = "ROGUE", player = true, hostile = true }
+
+local pelts = function(...)
+    local q = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 } }
+    for _, m in ipairs({ ... }) do
+        q[#q + 1] = { leftText = m[1], type = 18 }
+        q[#q + 1] = { leftText = " - Ravaged Pelt: " .. m[2] .. "/8", type = 8 }
+    end
+    q[#q + 1] = { leftText = "Skinnable" }
+    return q
+end
+
+-- the concept page's eight situations (docs/clean-slate.html)
+local CASES = {
+    { "wolf", { guid = "Creature-0-1-2-3-4521-000ABC", name = "Timberling Ravager", level = 24, ctype = "Beast", family = "Wolf",
+        cls = "elite", hostile = true, hp = 1116, hpMax = 1800, target = "player", questLines = pelts() } },
+    { "party", { guid = "Creature-0-1-2-3-4523-000ABE", name = "Timberling Ravager", level = 24, ctype = "Beast", family = "Wolf",
+        cls = "elite", hostile = true, hp = 1116, hpMax = 1800, target = "player",
+        questLines = pelts({ "Jokke", 5 }, { "Thalianne", 8 }, { "Mira", 1 }, { "Brokk", 6 }) } },
+    { "tapped", { guid = "Creature-0-1-2-3-113-000DEF", name = "Bristleback Thornweaver", level = 19, ctype = "Humanoid", family = "Quilboar",
+        hostile = true, tapDenied = true, hp = 41, hpMax = 100, target = "sneakystab" } },
+    { "rare", { guid = "Creature-0-1-2-3-14266-000123", name = "Ressan the Needler", level = 11, ctype = "Beast", family = "Spider",
+        cls = "rare", hostile = true, hp = 262, hpMax = 262 } },
+    { "boss", { guid = "Creature-0-1-2-3-639-000222", name = "Edwin VanCleef", level = 21, boss = true, ctype = "Humanoid", cls = "elite",
+        hostile = true, hp = SECRET, hpMax = SECRET, target = "thalianne" } },
+    { "inn", { guid = "Creature-0-1-2-3-6747-000111", name = "Innkeeper Boorand Plainswind", subtitle = "Innkeeper", level = 30,
+        ctype = "Humanoid", reaction = 5, hp = 100, hpMax = 100 } },
+    { "jokke", { guid = "Player-1-0000EEEE", name = "Jokke", class = "ROGUE", className = "Rogue", race = "Orc", guild = "Aurora EU",
+        faction = "Horde", level = 30, player = true, reaction = 5, hp = 640, hpMax = 900, inParty = true,
+        questLines = { { leftText = "<Aurora EU>" }, { leftText = "Horde" }, { leftText = "Orgrimmar" } } }, noPlate = true },
+    { "enemy", { guid = "Player-1-0000CCCD", name = "Sneakystab", class = "ROGUE", className = "Rogue", race = "Human", guild = "Shadow Council",
+        faction = "Alliance", pvp = true, level = 23, player = true, hostile = true, hp = 1040, hpMax = 1040, target = "player" } },
 }
-UNITS.boar = { guid = "Creature-0-1-2-3-113-000DEF", name = "Bristleback Quilboar", level = 19, ctype = "Humanoid", hostile = true, reaction = 4, hp = 76, hpMax = 100 }
-UNITS.boss = { guid = "Creature-0-1-2-3-639-000222", name = "Edwin VanCleef", level = 21, boss = true, ctype = "Humanoid", cls = "elite", hostile = true, hp = SECRET, hpMax = SECRET, target = "tank" }
-UNITS.tank = { guid = "Player-1-0000CCCC", name = "Thalianne", class = "WARRIOR", player = true }
-UNITS.innkeeper = { guid = "Creature-0-1-2-3-295-000111", name = "Innkeeper Farley", subtitle = "Innkeeper", level = 30, ctype = "Humanoid", reaction = 5, hp = 100, hpMax = 100 }
-UNITS.friend = { guid = "Player-1-0000BBBB", name = "Thalianne", class = "MAGE", className = "Mage", race = "Night Elf", guild = "Krakenhood", level = 22, player = true, reaction = 5, hp = 800, hpMax = 900 }
-Krakenfriends = { journey = { partnerName = "Thalianne", pairs = { a = { mobs = { [4521] = { c = 42 } } } } } }
+
+Krakenfriends = nil
+SECRET_STANDIN = 85 -- what the game writes for the boss's hidden health
 FireEvent("ADDON_LOADED", "Krakentip")
 FireEvent("PLAYER_LOGIN")
 local Card = KT.Card
@@ -46,14 +81,14 @@ local function col(c) return c and { c[1], c[2], c[3] } or nil end
 -- where it sits from the card's top left corner, and what it shows.
 local function snap()
     local f = Card.frame
-    local out = { look = f.look, w = f:GetWidth(), h = f:GetHeight(), parts = {}, edge = col(f._edge), glow = f._glow and true or false }
+    local out = { style = Card.shownStyle, w = f:GetWidth(), h = f:GetHeight(), parts = {}, edge = col(f._edge), glow = f._glow and true or false }
     for _, p in ipairs(f.parts) do
         if p:IsShown() and p._at then
             local e = { kind = p._kind, point = p._at[1], x = p._at[2], y = p._at[3] }
             local k = p._kind
             if k == "text" then
                 e.text = tostring(p:GetText() or "")
-                e.size, e.color, e.title, e.outline = p._size, col(p._color), p._title and true or false, p._outline and true or false
+                e.size, e.color, e.display, e.outline = p._size, col(p._color), p._display and true or false, p._outline and true or false
                 if (p._w or 0) > 0 then e.width = p._w end
                 e.justify = p._justify
             elseif k == "solid" then
@@ -61,21 +96,17 @@ local function snap()
             elseif k == "bar" then
                 e.w, e.h = p._size[1], p._size[2]
                 local v, m = p:GetValue(), p._max
-                e.fill = (type(v) == "number" and type(m) == "number" and m > 0) and v / m or 0.62
+                e.fill = (type(v) == "number" and type(m) == "number" and m > 0) and v / m or 0.85
                 e.color, e.texture = col(p._color), p._texture
-                e.edge = p._edge and col(p._edge) or nil
-            elseif k == "tag" then
-                e.text, e.size, e.w = p.text:GetText(), p._size, p:GetWidth()
+                e.edge = p._edge and p.edge:IsShown() and col(p._edge) or nil
             elseif k == "skull" then
                 e.size = p._size
-            elseif k == "ring" then
-                e.size = p._size
-                e.skull = p.skull:IsShown() and true or false
-                if p.level:IsShown() then e.level, e.levelColor = tostring(p.level:GetText()), col(p.level._color) end
-            elseif k == "face" then
-                e.size, e.unit, e.tex = p._size, p._unit, p._tex
+            elseif k == "tex" then
+                e.file, e.w, e.h, e.tint = p._file, p._w, p._h, p._tint
+            elseif k == "qring" then
+                e.size, e.frac, e.done, e.text = p._size, p._frac, p._done and true or false, p._text
             elseif k == "chip" then
-                e.icon, e.text, e.color = p._icon, tostring(p.text:GetText()), col(p.text._color)
+                e.icon, e.text, e.w = p._icon, tostring(p.text:GetText()), p:GetWidth()
             end
             out.parts[#out.parts + 1] = e
         end
@@ -84,9 +115,9 @@ local function snap()
 end
 
 local PLATE = CreateFrame("Frame", "ShotNamePlate")
-local function hover(unit)
+local function hover(unit, noPlate)
     UNITS.mouseover = UNITS[unit]
-    PLATES.mouseover = S.style == "banner" and PLATE or nil -- the Banner hangs from a nameplate
+    PLATES.mouseover = (S.style == "banner" and not noPlate) and PLATE or nil
     GameTooltip:SetUnit("mouseover")
     local s = snap()
     UNITS.mouseover = nil
@@ -94,65 +125,47 @@ local function hover(unit)
     return s
 end
 
-local out = { cards = {}, variants = {} }
+local out = { cards = {}, cases = {}, variants = {} }
+for _, case in ipairs(CASES) do
+    UNITS[case[1]] = case[2]
+    out.cases[#out.cases + 1] = case[1]
+end
 for _, style in ipairs(KT.STYLES) do
     S.style = style
     local c = {}
-    for _, unit in ipairs({ "wolf", "boar", "boss", "innkeeper", "friend" }) do c[unit] = hover(unit) end
+    for _, case in ipairs(CASES) do c[case[1]] = hover(case[1], case.noPlate) end
     out.cards[style] = c
+end
+-- what the nameplate above a Banner shows: name, its colour, the health
+out.plates = {}
+for _, case in ipairs(CASES) do
+    local u = case[2]
+    local info = Card:Gather(case[1], {})
+    local hp = (type(u.hp) == "number" and type(u.hpMax) == "number") and u.hp / u.hpMax or 0.85
+    out.plates[case[1]] = { name = u.name, color = col(KT.Layouts.NameColor(info)), hp = hp, tapped = info.tapped,
+        bar = col(info.tapped and { 0.48, 0.48, 0.48 } or info.reaction == "friendly" and { 0.16, 0.65, 0.16 } or info.reaction == "neutral" and { 0.85, 0.7, 0 } or { 0.77, 0.12, 0.12 }),
+        npc = not info.isPlayer and not info.canAttack }
 end
 
 -- the same card at other widths and heights, and with other bars
 local function variant(name, style, dims, bar)
     S.style = style
     S.dims[style] = dims
-    S.bar = bar or { texture = "smooth", color = "reaction" }
+    S.bar = bar or { texture = "slate", color = "health" }
     out.variants[name] = hover("wolf")
     S.dims[style] = nil
 end
-variant("regular", "regular")
-variant("regularSmall", "regular", { w = 0.8, h = 0.7 })
-variant("regularWide", "regular", { w = 1.3, h = 1.2 })
-variant("minimalWide", "minimal", { w = 1.6, h = 1.3 })
-for _, t in ipairs(KT.BarTextures) do variant("tex_" .. t.key, "mid", nil, { texture = t.key, color = "reaction" }) end
-for _, c in ipairs(KT.BarColors) do variant("col_" .. c.key, "mid", nil, { texture = "smooth", color = c.key }) end
-S.bar = { texture = "smooth", color = "reaction" }
+variant("glance", "glance")
+variant("glanceSmall", "glance", { w = 0.8, h = 0.7 })
+variant("glanceWide", "glance", { w = 1.3, h = 1.2 })
+variant("ledgerNarrow", "ledger", { w = 0.8 })
+for _, t in ipairs(KT.BarTextures) do variant("tex_" .. t.key, "glance", nil, { texture = t.key, color = "health" }) end
+for _, c in ipairs(KT.BarColors) do variant("col_" .. c.key, "glance", nil, { texture = "slate", color = c.key }) end
+S.bar = { texture = "slate", color = "health" }
 out.barLabels = {}
 for _, t in ipairs(KT.BarTextures) do out.barLabels["tex_" .. t.key] = t.label end
 for _, c in ipairs(KT.BarColors) do out.barLabels["col_" .. c.key] = c.label end
--- a party member in another zone, and a wolf both of you have a quest for
-UNITS.party1 = { guid = "Player-1-0000EEEE", name = "Jokke", class = "ROGUE", className = "Rogue", race = "Orc", guild = "Aurora EU",
-    level = 30, player = true, reaction = 5, hp = 640, hpMax = 900, target = "wolf",
-    questLines = { { leftText = "<Aurora EU>" }, { leftText = "Horde" }, { leftText = "Orgrimmar" } } }
-UNITS.wolfGroup = {
-    guid = "Creature-0-1-2-3-4522-000ABD", name = "Timberling Ravager", level = 24, ctype = "Beast", family = "Wolf",
-    cls = "elite", hostile = true, hp = 1116, hpMax = 1800, target = "player",
-    questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 },
-        { leftText = "Jokke", type = 18 }, { leftText = " - Ravaged Pelt: 5/8", type = 8 }, { leftText = "Skinnable" } },
-}
-RAID_CLASS_COLORS.ROGUE = RAID_CLASS_COLORS.ROGUE or { r = 1, g = 0.96, b = 0.41 }
-out.group = {}
-for _, style in ipairs(KT.STYLES) do
-    S.style = style
-    out.group[style] = { member = hover("party1"), wolf = hover("wolfGroup") }
-end
--- a full party: you and four members on the same quest
-UNITS.wolfParty = {
-    guid = "Creature-0-1-2-3-4523-000ABE", name = "Timberling Ravager", level = 24, ctype = "Beast", family = "Wolf",
-    cls = "elite", hostile = true, hp = 1116, hpMax = 1800, target = "player",
-    questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 },
-        { leftText = "Jokke", type = 18 }, { leftText = " - Ravaged Pelt: 5/8", type = 8 },
-        { leftText = "Thalianne", type = 18 }, { leftText = " - Ravaged Pelt: 8/8", type = 8 },
-        { leftText = "Mira", type = 18 }, { leftText = " - Ravaged Pelt: 1/8", type = 8 },
-        { leftText = "Brokk", type = 18 }, { leftText = " - Ravaged Pelt: 6/8", type = 8 } },
-}
-out.party = {}
-for _, style in ipairs(KT.STYLES) do
-    S.style = style
-    out.party[style] = hover("wolfParty")
-end
-UNITS.party1 = nil
-S.style = "regular"
+S.style = "glance"
 
 -- the options window as it opens, with the sample card
 SlashCmdList.KRAKENTIP("")
