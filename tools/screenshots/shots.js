@@ -78,7 +78,7 @@ const BAR_SHINE = {
 const FACE_TINT = { Beast: ['#8a7a66', '#2b241c'], Humanoid: ['#c9a27e', '#4a3322'], player: ['#9fb6d8', '#26324a'] };
 
 function drawPart(p) {
-  const pos = `left:${p.x}px;top:${p.y}px;`;
+  const pos = `left:${p.x}px;top:${p.y}px;${p.kind === 'text' || p.kind === 'tag' ? '' : SHIFT[p.point] || ''}`;
   switch (p.kind) {
     case 'text': {
       const w = p.width ? `width:${p.width}px;overflow:hidden;text-overflow:ellipsis;` : '';
@@ -90,7 +90,7 @@ function drawPart(p) {
     case 'solid':
       return `<div style="position:absolute;${pos}width:${p.w}px;height:${p.h}px;background:rgba(${p.rgba.slice(0, 3).map(v => Math.round(v * 255)).join(',')},${p.rgba[3]})"></div>`;
     case 'bar':
-      return `<div style="position:absolute;${pos}width:${p.w}px;height:${p.h}px;background:rgba(0,0,0,.65);box-shadow:0 0 0 1px rgba(255,209,0,.5)">
+      return `<div style="position:absolute;${pos}width:${p.w}px;height:${p.h}px;background:rgba(0,0,0,.65);box-shadow:0 0 0 1px ${p.edge ? rgb(p.edge) : 'rgba(255,209,0,.5)'}">
         <div style="height:100%;width:${Math.round(p.fill * 100)}%;background:${BAR_SHINE[p.texture] || BAR_SHINE.smooth}, ${rgb(p.color)}"></div></div>`;
     case 'tag':
       return `<div class="tag" style="${pos}${SHIFT[p.point]}width:${p.w}px;height:${p.size + 3}px;line-height:${p.size + 3}px;font-size:${p.size}px">${esc(p.text)}</div>`;
@@ -115,7 +115,11 @@ function drawPart(p) {
 }
 
 function cardHTML(c) {
-  const frame = c.look === 'dialog' ? `<div class="dialog" style="left:-7px;top:-7px;width:${c.w + 14}px;height:${c.h + 14}px"></div>` : '<div class="thin"></div>';
+  // the Slate looks: the game's own tooltip ground, the edge in the rank's colour, a red glow when it's after you
+  const tipFrame = () => `<div style="position:absolute;inset:-1px;background:rgba(8,9,18,.93);border:1px solid ${rgb(c.edge || [0.44, 0.46, 0.53])};border-radius:3px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.85)${c.glow ? ',0 0 12px 2px rgba(255,50,35,.6)' : ''},0 6px 18px rgba(0,0,0,.55)"></div>`;
+  const frame = c.look === 'dialog' ? `<div class="dialog" style="left:-7px;top:-7px;width:${c.w + 14}px;height:${c.h + 14}px"></div>`
+    : c.look === 'tip' ? tipFrame() : '<div class="thin"></div>';
   return { html: `<div style="position:relative;width:${c.w}px;height:${c.h}px">${frame}${c.parts.map(drawPart).join('')}</div>`, w: c.w, h: c.h };
 }
 const card = (style, unit) => cardHTML(data.cards[style][unit]);

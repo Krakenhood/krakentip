@@ -69,7 +69,10 @@ function Card:Gather(unit, extra)
     info.guid = call(UnitGUID, unit)
     info.name = raw(UnitName, unit)
     info.level = call(UnitLevel, unit)
-    if call(UnitIsBossMob or function() end, unit) then info.level = -1 end
+    if call(UnitIsBossMob or function() end, unit) then
+        info.level = -1
+        info.isBoss = true
+    end
     info.isPlayer = call(UnitIsPlayer, unit) and true or false
     info.canAttack = call(UnitCanAttack, "player", unit) and true or false
     local reaction = call(UnitReaction, unit, "player")
@@ -86,6 +89,9 @@ function Card:Gather(unit, extra)
         info.className, info.classColor = className, classColor(class)
         info.race = call(UnitRace, unit)
         info.guild = call(GetGuildInfo or function() end, unit)
+        info.factionGroup, info.faction = call(UnitFactionGroup or function() end, unit)
+        info.pvp = call(UnitIsPVP or function() end, unit) and true or false
+        info.inParty = (call(UnitInParty or function() end, unit) or call(UnitInRaid or function() end, unit)) and true or false
     else
         info.cls = call(UnitClassification, unit)
         info.ctype = call(UnitCreatureType, unit)
@@ -126,8 +132,32 @@ function Card:FrameFor(style)
     return f
 end
 
-function Card:Fill(info)
+-- The look a unit gets right now. Holding Shift opens the Ledger from any
+-- look, the Ledger shrinks to Glance in combat, and the Banner needs a
+-- nameplate to hang from (without one it's Glance at the cursor).
+function Card:EffectiveStyle(info)
+    local s = KT.db.settings
     local style = self:Style()
+    if info.isSample then return style end
+    if s.shiftLedger and call(IsShiftKeyDown or function() end) then return "ledger" end
+    if style == "ledger" and s.combatGlance and call(UnitAffectingCombat, "player") then return "glance" end
+    if style == "banner" and not self:PlateFor(info) then return "glance" end
+    return style
+end
+
+-- the unit's nameplate, when the game shows one and lets addons have it
+function Card:PlateFor(info)
+    local unit = info and info.unit
+    local plates = C_NamePlate
+    if not (unit and plates and plates.GetNamePlateForUnit) then return nil end
+    local ok, plate = pcall(plates.GetNamePlateForUnit, unit)
+    plate = ok and clean(plate)
+    return type(plate) == "table" and plate or nil
+end
+
+function Card:Fill(info)
+    local style = self:EffectiveStyle(info)
+    self.shownStyle = style
     local f = self:FrameFor(style)
     if self.frame and self.frame ~= f then self.frame:Hide() end
     self.frame = f
@@ -184,11 +214,21 @@ end
 -- A soft target (action targeting) isn't under the mouse, so its card goes
 -- where the game puts tooltips.
 function Card:AtMouse()
+    if self.shownStyle == "banner" and not self.sample then return false end
     return KT.db.settings.position == "mouse" and not (self.info and KT.Hook.SOFT[self.info.unit])
 end
 
 function Card:Place()
     local f = self.frame
+    -- the Banner hangs under the unit's nameplate, and moves with it
+    if self.shownStyle == "banner" and not self.sample then
+        local plate = self:PlateFor(self.info)
+        if plate then
+            f:ClearAllPoints()
+            f:SetPoint("TOP", plate, "BOTTOM", 0, -2)
+            return
+        end
+    end
     if self:AtMouse() then return self:FollowMouse() end
     f:ClearAllPoints()
     if self.sample or not tooltipSpot(f) then defaultSpot(f) end
@@ -238,7 +278,7 @@ function Card:ToggleSample(on)
         self.sample = nil
         return
     end
-    local info = {}
+    local info = { isSample = true }
     for k, v in pairs(KT.Sample) do info[k] = v end
     info.targetColor = T.bad
     info.difficultyColor = { 1.00, 0.50, 0.25 } -- hard: three levels above you
@@ -292,9 +332,32 @@ function Card:OnUpdate(elapsed)
     since = 0
     local fresh = self:Gather(info.unit, info)
     fresh.owner = info.owner
-    self:Fill(fresh)
+    self:Refill(fresh)
     KT:Fire("CARD", fresh)
 end
+
+-- Fills the card again; when that's another look (Shift, combat, a nameplate
+-- that came or went), the new frame takes the old one's place.
+function Card:Refill(info)
+    local before = self.frame
+    self:Fill(info)
+    if self.frame ~= before then
+        self.frame:SetAlpha(1)
+        self:Place()
+        self.frame:Show()
+    end
+end
+
+-- Shift pressed or let go, a fight starting or ending: the look may change now
+local function rethink()
+    if Card.sample or Card.fading or not (Card.info and Card.frame and Card.frame:IsShown()) then return end
+    local fresh = Card:Gather(Card.info.unit, Card.info)
+    fresh.owner = Card.info.owner
+    Card:Refill(fresh)
+end
+KT:On("MODIFIER_STATE_CHANGED", rethink)
+KT:On("PLAYER_REGEN_DISABLED", rethink)
+KT:On("PLAYER_REGEN_ENABLED", rethink)
 
 KT:Listen("SETTINGS", function()
     if Card.sample then

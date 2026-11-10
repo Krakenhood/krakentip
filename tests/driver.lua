@@ -33,8 +33,11 @@ FireEvent("PLAYER_LOGIN")
 local Card = KT.Card
 local S = KrakentipDB.settings
 
+-- the Banner hangs from a nameplate; every hovered unit has one while it's the look
+local PLATE = CreateFrame("Frame", "TestNamePlate")
 local function hover(unit)
     UNITS.mouseover = UNITS[unit]
+    PLATES.mouseover = KrakentipDB.settings.style == "banner" and PLATE or nil
     GameTooltip:SetUnit("mouseover")
 end
 local function tick(sec) Card.frame:GetScript("OnUpdate")(Card.frame, sec) end
@@ -294,16 +297,21 @@ check(S.style == "classic", "/kt style goes on to the next look")
 SlashCmdList.KRAKENTIP("regular")
 check(S.style == "regular", "/kt regular picks a look by its name")
 
-section("all eight looks: every kind of unit, no errors, each its own size")
+section("all twelve looks: every kind of unit, no errors, each its own size")
 local sizes, distinct = {}, 0
 for _, style in ipairs(KT.STYLES) do
     SlashCmdList.KRAKENTIP("style " .. style)
     for _, unit in ipairs({ "wolf", "boss", "boar", "innkeeper", "friend", "rogue" }) do
         hover(unit)
         check(cardShown() and F() == Card.frames[style], style .. " shows for " .. unit)
-        check(F().name:GetText() == UNITS[unit].name or (style == "plate" and F().name:GetText():find(UNITS[unit].name, 1, true)), style .. ": name of " .. unit)
+        if style ~= "banner" then -- the Banner leaves the name to the nameplate
+            local want = UNITS[unit].name
+            -- the Slate looks drop the title the role already shows
+            if (style == "whisper" or style == "glance" or style == "ledger") and UNITS[unit].subtitle then want = want:gsub("^" .. UNITS[unit].subtitle .. " ", "") end
+            check(F().name:GetText() == want or (style == "plate" and F().name:GetText():find(want, 1, true)), style .. ": name of " .. unit .. ": " .. tostring(F().name:GetText()))
+        end
         local w, h = F():GetWidth(), F():GetHeight()
-        check(type(w) == "number" and w >= 100 and w <= 400 and type(h) == "number" and h >= 20 and h <= 260, ("%s %s: %sx%s"):format(style, unit, tostring(w), tostring(h)))
+        check(type(w) == "number" and w >= 80 and w <= 400 and type(h) == "number" and h >= 20 and h <= 260, ("%s %s: %sx%s"):format(style, unit, tostring(w), tostring(h)))
         if unit == "wolf" then
             local key = w .. "x" .. h
             if not sizes[key] then sizes[key] = true; distinct = distinct + 1 end
@@ -312,7 +320,7 @@ for _, style in ipairs(KT.STYLES) do
     end
 end
 check(distinct >= 7, distinct .. " different sizes for the wolf")
-check(#KT.STYLES == 8 and not KT.Layouts.wide and not KT.Layouts.column, "Wide and Column are gone")
+check(#KT.STYLES == 12 and not KT.Layouts.wide and not KT.Layouts.column, "twelve looks, Wide and Column gone")
 
 section("every look shows the creature type and the quest progress")
 local function texts(f)
@@ -400,20 +408,20 @@ leave()
 section("compare: every look side by side")
 SlashCmdList.KRAKENTIP("compare")
 local Cmp = KT.Compare
-check(Cmp.frame:IsShown() and #Cmp.cells == 8, "eight looks")
+check(Cmp.frame:IsShown() and #Cmp.cells == 12, "twelve looks")
 check(Cmp.cells[1].card.name:GetText() == "Timberling Ravager", "the sample first")
-check(Cmp.cells[1].label:GetText() == "Regular  (in use)", "the look in use is marked: " .. tostring(Cmp.cells[1].label:GetText()))
+check(Cmp.cells[5].label:GetText() == "Regular  (in use)", "the look in use is marked: " .. tostring(Cmp.cells[5].label:GetText()))
 hover("friend")
-check(Cmp.cells[5].card.name:GetText() == "Thalianne", "hovering fills every look with that unit")
+check(Cmp.cells[9].card.name:GetText() == "Thalianne", "hovering fills every look with that unit")
 leave()
-check(Cmp.cells[2].card.name:GetText() == "Thalianne", "and keeps it after the mouse leaves")
-check(Cmp.cells[2].card.bar.text:GetText() == "89%", "health kept: " .. tostring(Cmp.cells[2].card.bar.text:GetText()))
+check(Cmp.cells[6].card.name:GetText() == "Thalianne", "and keeps it after the mouse leaves")
+check(Cmp.cells[6].card.bar.text:GetText() == "89%", "health kept: " .. tostring(Cmp.cells[6].card.bar.text:GetText()))
 hover("boss")
 leave()
-local reg = Cmp.cells[1].card
+local reg = Cmp.cells[5].card
 check(reg.name:GetText() == "Edwin VanCleef" and reg.bar.text:GetText() == "<secret>", "a unit with hidden health keeps its percentage in Compare: " .. tostring(reg.bar.text:GetText()))
-Click(Cmp.cells[6])
-check(S.style == "portrait" and Cmp.cells[6].label:GetText() == "Portrait  (in use)", "click a look to use it")
+Click(Cmp.cells[10])
+check(S.style == "portrait" and Cmp.cells[10].label:GetText() == "Portrait  (in use)", "click a look to use it")
 check(Cmp.frame:GetHeight() > 200, "sized to its looks: " .. Cmp.frame:GetHeight())
 Cmp.frame:Hide()
 SlashCmdList.KRAKENTIP("regular")
@@ -435,11 +443,11 @@ SlashCmdList.KRAKENTIP("")
 local O = KT.Options
 check(O.frame:IsShown(), "options open")
 check(O.position.buttons[1]:GetChecked() and not O.position.buttons[2]:GetChecked(), "mouse picked")
-check(O.styleName:GetText() == "Regular  1/8", "regular shown: " .. tostring(O.styleName:GetText()))
+check(O.styleName:GetText() == "Regular  5/12", "regular shown: " .. tostring(O.styleName:GetText()))
 Click(O.styleNext)
-check(S.style == "mid" and O.styleName:GetText() == "Mid  2/8", "> steps to the next look")
+check(S.style == "mid" and O.styleName:GetText() == "Mid  6/12", "> steps to the next look")
 Click(O.stylePrev); Click(O.stylePrev)
-check(S.style == "icons", "< steps back, round the end")
+check(S.style == "banner", "< steps back, into the Slate looks")
 SlashCmdList.KRAKENTIP("regular")
 Click(O.widthText.minus); Click(O.widthText.minus)
 Click(O.heightText.plus)
@@ -479,7 +487,7 @@ local mm = KrakentipMinimapButton
 check(mm and mm:IsShown(), "there")
 Click(mm, "RightButton")
 check(S.style == "mid", "right-click: next style")
-for _ = 1, 7 do Click(mm, "RightButton") end
+for _ = 1, 11 do Click(mm, "RightButton") end
 check(S.style == "regular", "and round again")
 SHIFT = true
 Click(mm)
@@ -655,7 +663,7 @@ KT:ResetFields("regular")
 section("the options show this look's fields")
 SlashCmdList.KRAKENTIP("")
 local Op = KT.Options
-check(#Op.checks == #KT.FIELDS + 1, "a tick for every field, and Use the Kraken card")
+check(#Op.checks == #KT.FIELDS + 3, "a tick for every field, Use the Kraken card, Shift and combat")
 check(Op.fieldsHeading:GetText() == "On the card: Regular", "named after the look: " .. tostring(Op.fieldsHeading:GetText()))
 SlashCmdList.KRAKENTIP("minimal")
 check(Op.fieldsHeading:GetText() == "On the card: Minimal" and not Op.fieldChecks.guild:GetChecked(), "switching the look switches the ticks")
@@ -676,6 +684,143 @@ KrakentipDB.settings.fields = {}
 S = KrakentipDB.settings
 UNITS.wolf.questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 } }
 UNITS.party1 = nil
+
+section("Slate: Whisper, two short lines")
+local function texts(f)
+    local out = {}
+    for _, p in ipairs(f.parts) do
+        if p:IsShown() and p.GetText and p:GetText() then out[#out + 1] = tostring(p:GetText()) end
+        if p:IsShown() and p.text and p.text.GetText and p.text:GetText() then out[#out + 1] = tostring(p.text:GetText()) end
+    end
+    return (table.concat(out, " | "):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+SlashCmdList.KRAKENTIP("whisper")
+hover("wolf")
+check(F() == Card.frames.whisper and F().name:GetText() == "Timberling Ravager", "name in full when it fits")
+check(F().level:GetText() == "24+" and F().you:IsShown() and F().quest:GetText() == "3/8", "24+, YOU, 3/8 on line one")
+check(texts(F()):find("Elite Beast · Wolf · 62%", 1, true), "rank, type and health on line two: " .. texts(F()))
+check(F().glow:IsShown(), "the red glow: it's after you")
+check(F().bar:IsShown() and F().bar._size[2] == 2, "the health line along the bottom")
+leave()
+UNITS.longname = { guid = "Creature-0-1-2-3-77-0000AA", name = "Bristleback Thornweaver", level = 19, ctype = "Humanoid", family = "Quilboar", hostile = true, tapDenied = true, hp = 41, hpMax = 100 }
+hover("longname")
+check(F().name:GetText() == "B. Thornweaver", "a long name shortened: " .. tostring(F().name:GetText()))
+check(texts(F()):find("tapped", 1, true) and F().spine._rgba[1] < 0.6 and F().spine._rgba[1] == F().spine._rgba[2], "tapped, the edge grey")
+leave()
+hover("innkeeper")
+check(F().name:GetText() == "Farley" and texts(F()):find("<Innkeeper> Humanoid", 1, true), "an NPC: the title as its role: " .. texts(F()))
+check(not F().bar:IsShown(), "no health line for an innkeeper")
+leave()
+
+section("Slate: Glance")
+SlashCmdList.KRAKENTIP("glance")
+hover("wolf")
+check(F().ring:IsShown() and F().ring.level:GetText() == "3/8", "the quest ring")
+check(F().num:GetText() == "1,116" and F().bar.text:GetText() == "62%", "the number left, the percentage right")
+check(F().left:GetText():find("You", 1, true) and F().right:GetText() == "Beast · Wolf", "target and type")
+check(F()._edge == F()._edge and F().cornerH:IsShown(), "the elite corner")
+leave()
+UNITS.wolf.questLines = {
+    { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 },
+    { leftText = "Jokke", type = 18 }, { leftText = " - Ravaged Pelt: 5/8", type = 8 },
+    { leftText = "Mira", type = 18 }, { leftText = " - Ravaged Pelt: 8/8", type = 8 },
+}
+UNITS.party1 = { guid = "Player-1-0000EEEE", name = "Jokke", class = "ROGUE", player = true, reaction = 5 }
+hover("wolf")
+local pips = {}
+for _, p in ipairs(F().pips) do if p:IsShown() then pips[#pips + 1] = p.letter:GetText() .. " " .. p.count:GetText() end end
+check(table.concat(pips, ", ") == "Y 3/8, J 5/8, M 8/8", "the party, with counts: " .. table.concat(pips, ", "))
+check(isColor(F().pips[2].letter._color, 1, 0.96, 0.41), "Jokke in rogue yellow")
+leave()
+SlashCmdList.KRAKENTIP("banner")
+hover("wolf")
+check(texts(F()):find("J 5/8", 1, true) and texts(F()):find("M 8/8", 1, true), "Banner: the members as counts: " .. texts(F()))
+leave()
+UNITS.wolf.questLines = { { leftText = "Ravaged Pelts", type = 17, color = { 1, 0.82, 0 } }, { leftText = " - Ravaged Pelt: 3/8", type = 8 } }
+UNITS.party1 = nil
+SlashCmdList.KRAKENTIP("glance")
+hover("boss")
+check(F().skull:IsShown() and not F().num:IsShown() and F().bar.text:GetText() == "<secret>", "a boss: the skull, no number, the game's percentage")
+check(F().rank:GetText() == "BOSS", "the BOSS word: " .. tostring(F().rank:GetText()))
+leave()
+hover("innkeeper")
+local chipTexts = {}
+for _, c in ipairs(F().chips) do if c:IsShown() then chipTexts[#chipTexts + 1] = c.text:GetText() end end
+check(table.concat(chipTexts, ", ") == "Hearthstone, Food & drink" and not F().bar:IsShown(), "an innkeeper's services instead of a bar")
+leave()
+
+section("Slate: Ledger")
+SlashCmdList.KRAKENTIP("ledger")
+UNITS.rogue.guild, UNITS.rogue.faction, UNITS.rogue.pvp = "Shadow Council", "Alliance", true
+hover("rogue")
+check(F().rank:GetText() == "PVP" and F().guild:GetText() == "<Shadow Council>" and F().faction:GetText() == "Alliance", "a PvP player: guild, faction")
+check(F().levelLine:GetText():find("Undead Rogue", 1, true), "level, race and class: " .. F().levelLine:GetText())
+leave()
+UNITS.rogue.guild, UNITS.rogue.faction, UNITS.rogue.pvp = nil, nil, nil
+hover("wolf")
+check(F().rank:GetText() == "ELITE" and F().levelLine:GetText():find("Beast · Wolf", 1, true), "ELITE, level and type")
+check(F().qobj:GetText() == "Ravaged Pelt" and F().qrows[1].name:GetText() == "You" and F().qrows[1].count:GetText() == "3/8", "the quest as a table")
+leave()
+
+section("Slate: Banner hangs from the nameplate")
+SlashCmdList.KRAKENTIP("banner")
+hover("wolf")
+local p1, rel1 = F():GetPoint(1)
+check(F() == Card.frames.banner and p1 == "TOP" and rel1 == PLATE, "under the nameplate")
+check(not texts(F()):find("Timberling", 1, true) and texts(F()):find("Beast · Wolf", 1, true), "no name (the plate has it), the type: " .. texts(F()))
+leave()
+UNITS.mouseover = UNITS.wolf
+PLATES.mouseover = nil
+GameTooltip:SetUnit("mouseover")
+check(F() == Card.frames.glance, "no nameplate: Glance at the cursor")
+PLATES.mouseover = PLATE
+tick(0.25)
+check(F() == Card.frames.banner and cardShown(), "the plate shows up: the Banner takes over")
+leave()
+
+section("Slate: Shift opens the Ledger, combat shrinks it")
+SlashCmdList.KRAKENTIP("glance")
+hover("wolf")
+SHIFT = true
+FireEvent("MODIFIER_STATE_CHANGED", "LSHIFT", 1)
+check(F() == Card.frames.ledger and cardShown(), "Shift: the Ledger, at once")
+check(not Card.frames.glance:IsShown(), "and Glance makes way")
+SHIFT = false
+FireEvent("MODIFIER_STATE_CHANGED", "LSHIFT", 0)
+check(F() == Card.frames.glance and cardShown(), "let go: Glance again")
+leave()
+SlashCmdList.KRAKENTIP("ledger")
+hover("wolf")
+COMBAT = true
+FireEvent("PLAYER_REGEN_DISABLED")
+check(F() == Card.frames.glance, "combat: the Ledger shrinks to Glance")
+SHIFT = true
+FireEvent("MODIFIER_STATE_CHANGED", "LSHIFT", 1)
+check(F() == Card.frames.ledger, "Shift still opens it, in combat too")
+SHIFT = false
+FireEvent("MODIFIER_STATE_CHANGED", "LSHIFT", 0)
+COMBAT = false
+FireEvent("PLAYER_REGEN_ENABLED")
+check(F() == Card.frames.ledger, "the fight ends: the Ledger again")
+leave()
+SlashCmdList.KRAKENTIP("combat")
+check(not S.combatGlance, "/kt combat switches it off")
+COMBAT = true
+hover("wolf")
+check(F() == Card.frames.ledger, "and the Ledger stays in combat")
+leave()
+COMBAT = false
+SlashCmdList.KRAKENTIP("combat")
+SlashCmdList.KRAKENTIP("shift")
+check(not S.shiftLedger, "/kt shift switches Shift off")
+SlashCmdList.KRAKENTIP("glance")
+SHIFT = true
+hover("wolf")
+check(F() == Card.frames.glance, "Shift does nothing then")
+leave()
+SHIFT = false
+SlashCmdList.KRAKENTIP("shift")
+SlashCmdList.KRAKENTIP("regular")
 
 section("errors")
 check(#ERRORS == 0, #ERRORS .. " errors raised")

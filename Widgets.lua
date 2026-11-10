@@ -190,6 +190,25 @@ function Wg.ThinFrame(f, pad)
     return frame
 end
 
+-- The look of the game's own tooltips: a dark, see-through ground with the
+-- thin tooltip edge, which the Slate looks colour by rank.
+function Wg.TipFrame(f)
+    local frame = CreateFrame("Frame", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    frame:SetPoint("TOPLEFT", -1, 1)
+    frame:SetPoint("BOTTOMRIGHT", 1, -1)
+    frame:SetFrameLevel(math.max(0, f:GetFrameLevel() - 1))
+    if frame.SetBackdrop then
+        frame:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = Wg.FirstFile(KT.Files.thinEdge), edgeSize = 12,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        frame:SetBackdropColor(0.03, 0.035, 0.07, 0.93)
+        frame:SetBackdropBorderColor(0.44, 0.46, 0.53, 1)
+    end
+    return frame
+end
+
 -- A flat text button in the gold style (tabs, links).
 function Wg.TextButton(parent, label, size)
     local b = CreateFrame("Button", nil, parent)

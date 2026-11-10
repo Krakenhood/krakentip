@@ -46,7 +46,7 @@ local function col(c) return c and { c[1], c[2], c[3] } or nil end
 -- where it sits from the card's top left corner, and what it shows.
 local function snap()
     local f = Card.frame
-    local out = { look = f.look, w = f:GetWidth(), h = f:GetHeight(), parts = {} }
+    local out = { look = f.look, w = f:GetWidth(), h = f:GetHeight(), parts = {}, edge = col(f._edge), glow = f._glow and true or false }
     for _, p in ipairs(f.parts) do
         if p:IsShown() and p._at then
             local e = { kind = p._kind, point = p._at[1], x = p._at[2], y = p._at[3] }
@@ -63,6 +63,7 @@ local function snap()
                 local v, m = p:GetValue(), p._max
                 e.fill = (type(v) == "number" and type(m) == "number" and m > 0) and v / m or 0.62
                 e.color, e.texture = col(p._color), p._texture
+                e.edge = p._edge and col(p._edge) or nil
             elseif k == "tag" then
                 e.text, e.size, e.w = p.text:GetText(), p._size, p:GetWidth()
             elseif k == "skull" then
@@ -82,8 +83,10 @@ local function snap()
     return out
 end
 
+local PLATE = CreateFrame("Frame", "ShotNamePlate")
 local function hover(unit)
     UNITS.mouseover = UNITS[unit]
+    PLATES.mouseover = S.style == "banner" and PLATE or nil -- the Banner hangs from a nameplate
     GameTooltip:SetUnit("mouseover")
     local s = snap()
     UNITS.mouseover = nil

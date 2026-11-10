@@ -87,6 +87,7 @@ local function bar(f)
     edge:SetPoint("TOPLEFT", -1, 1)
     edge:SetPoint("BOTTOMRIGHT", 1, -1)
     part(f, b, "bar")
+    b.edge = edge
     b.text = text(f, 11, T.text, { outline = "OUTLINE", top = true })
     return b
 end
@@ -432,7 +433,13 @@ end
 function Layouts.Build(f, key)
     f.parts = {}
     f.look = Layouts[key].frame
-    if f.look == "dialog" then Wg.DialogFrame(f) else Wg.ThinFrame(f, 0) end
+    if f.look == "dialog" then
+        Wg.DialogFrame(f)
+    elseif f.look == "tip" then
+        f.backdrop = Wg.TipFrame(f)
+    else
+        Wg.ThinFrame(f, 0)
+    end
     -- texts that sit on the bar go on a layer above it
     f.top = CreateFrame("Frame", nil, f)
     f.top:SetAllPoints()
@@ -1135,3 +1142,13 @@ function IC.Fill(f, info, s, wk, hk)
     end
     return W, y + 14 + 5
 end
+
+--------------------------------------------------------------------------------
+-- The building blocks, for the looks in Slate.lua
+--------------------------------------------------------------------------------
+
+Layouts.kit = {
+    width = width, setText = setText, paint = paint, V = V, part = part, at = at, text = text, solid = solid,
+    bar = bar, placeBar = placeBar, barText = barText, skull = skull, setLevel = setLevel, chip = chip, pool = pool,
+    otherLines = otherLines, count = count,
+}

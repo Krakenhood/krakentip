@@ -162,11 +162,14 @@ function KT:ResetFields(style)
     self.db.settings.fields[style or self.db.settings.style] = nil
     self:Fire("SETTINGS")
 end
-KT.STYLES = { "regular", "mid", "minimal", "classic", "plate", "portrait", "bar", "icons" }
+-- the four Slate looks first (Slate.lua), then the first eight (Layouts.lua)
+KT.STYLES = { "whisper", "glance", "ledger", "banner", "regular", "mid", "minimal", "classic", "plate", "portrait", "bar", "icons" }
 
 local DEFAULTS = {
     settings = {
         enabled = true,     -- false: units get the game's own tooltip
+        shiftLedger = true, -- holding Shift opens the Ledger, whatever the look
+        combatGlance = true, -- the Ledger shrinks to Glance in combat
         style = "regular",  -- one of KT.STYLES (Layouts.lua)
         position = "mouse", -- "mouse": next to the cursor; "tooltip": where the game puts tooltips (Edit Mode moves it)
         scale = 1,
@@ -210,6 +213,11 @@ end)
 KT:On("PLAYER_LOGIN", function()
     if not KT.db then KT:LoadDB() end
     KT:Fire("SETUP")
+    -- once: the Slate looks are new
+    if not KT.db.settings.toldSlate then
+        KT.db.settings.toldSlate = true
+        KT:Print("new: the Slate looks. Try |cffffd100/kt ledger|r, |cffffd100/kt glance|r, |cffffd100/kt whisper|r or |cffffd100/kt banner|r, or see all with |cffffd100/kt compare|r.")
+    end
 end)
 
 --------------------------------------------------------------------------------
@@ -222,6 +230,9 @@ local HELP = {
     { "/kt tooltip", "show the card where the game puts tooltips (move that in Edit Mode)" },
     { "/kt style", "switch to the next look (or /kt style plate, see /kt styles)" },
     { "/kt styles", "list the looks" },
+    { "/kt ledger", "pick a look by its name: whisper, glance, ledger, banner, regular, ..." },
+    { "/kt shift", "holding Shift opens the Ledger, or not" },
+    { "/kt combat", "the Ledger shrinks to Glance in combat, or not" },
     { "/kt show group", "show or hide a field on this look (type, title, rank, health, target, quests, group, other, guild, friends)" },
     { "/kt compare", "see every look side by side; hover a unit to fill them" },
     { "/kt width 1.2", "make this look wider or narrower (0.6 to 1.6)" },
@@ -235,10 +246,15 @@ local HELP = {
 }
 
 KT.STYLE_LABEL = {
+    whisper = "Whisper", glance = "Glance", ledger = "Ledger", banner = "Banner",
     regular = "Regular", mid = "Mid", minimal = "Minimal", classic = "Classic",
     plate = "Plate", portrait = "Portrait", bar = "Bar", icons = "Icons",
 }
 KT.STYLE_HINT = {
+    whisper = "Two short lines of text at the cursor.",
+    glance = "A bar and two rows, for fighting.",
+    ledger = "The full read, like the game's item tooltips.",
+    banner = "Hangs under the creature's nameplate.",
     regular = "The full card: a big bar and a line for each thing.",
     mid = "Name, type and target at a glance, a thin bar.",
     minimal = "Two short lines: name, then bar, type, quest and target.",
@@ -321,6 +337,18 @@ local commands = {
     on = function() KT:SetEnabled(true) end,
     off = function() KT:SetEnabled(false) end,
     blizzard = function() KT:SetEnabled(not KT.db.settings.enabled) end,
+    shift = function()
+        local st = KT.db.settings
+        st.shiftLedger = not st.shiftLedger
+        KT:Print(st.shiftLedger and "Holding Shift opens the Ledger." or "Shift no longer opens the Ledger.")
+        KT:Fire("SETTINGS")
+    end,
+    combat = function()
+        local st = KT.db.settings
+        st.combatGlance = not st.combatGlance
+        KT:Print(st.combatGlance and "The Ledger shrinks to Glance in combat." or "The Ledger stays the Ledger in combat.")
+        KT:Fire("SETTINGS")
+    end,
     -- /kt show group: switch a field of this look on or off
     show = function(arg)
         for _, f in ipairs(KT.FIELDS) do

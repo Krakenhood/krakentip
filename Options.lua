@@ -181,6 +181,15 @@ function Options:Create()
     enabled:SetPoint("TOPLEFT", PAD - 4, -y)
     self.checks[#self.checks + 1] = enabled
     y = y + 24
+    local shift = Wg.Check(f, "Hold Shift for the Ledger", function() return KT.db.settings.shiftLedger end,
+        function(v) KT.db.settings.shiftLedger = v end, "While you hold Shift, any look becomes the Ledger, with everything. Let go and your look comes back.")
+    shift:SetPoint("TOPLEFT", PAD - 4, -y)
+    self.checks[#self.checks + 1] = shift
+    local combat = Wg.Check(f, "Ledger shrinks in combat", function() return KT.db.settings.combatGlance end,
+        function(v) KT.db.settings.combatGlance = v end, "When your look is the Ledger, it becomes Glance while you're in combat, so it covers less of the fight.")
+    combat:SetPoint("TOPLEFT", PAD - 4 + 168, -y)
+    self.checks[#self.checks + 1] = combat
+    y = y + 24
 
     self.scaleText = stepper(f, "Scale", PAD + 2, y, 44, function(d)
         local st = KT.db.settings

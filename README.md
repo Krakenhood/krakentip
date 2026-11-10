@@ -4,7 +4,27 @@ Creatures and players get a card in the game's own style (gold border, dark ston
 
 ![The card next to the mouse](assets/screenshots/1-card-at-mouse.png)
 
-## Eight styles
+## Twelve styles
+
+### The Slate looks
+
+Four styles designed from a blank page (the concept: [docs/clean-slate.html](docs/clean-slate.html)), in the look of the game's own tooltips: a dark ground, the tooltip's thin edge, a coloured stripe on the left (hostile, neutral, friendly, tapped, or the player's class), the frame gold for elites, silver for rares and red for bosses, and a red glow when the unit is after you. Each carries what the game's tooltip gives: name, level, type (race and class), rank, health, quest progress and target; guild, faction and PvP for players; the title for NPCs.
+
+| Style | What it looks like |
+| --- | --- |
+| **Whisper** | Two short lines of text at the cursor: level, name, YOU, your count; then rank and type, health, target, guild, the party's counts. A health line along the bottom edge. |
+| **Glance** | For fighting: level, name and a quest ring; the bar with the number and percentage; target and type; guild and faction for players; one small bar with a count per party member. |
+| **Ledger** | The full read, like the game's item tooltips: every line, and a party's quest as a short table (You 3/8, Jokke 5/8, ...). |
+| **Banner** | Hangs under the creature's nameplate, which already shows name and health: level, rank, quest ring, the party's counts and the target, with the type below. Without a nameplate (nameplates off, a unit frame, a party member far away) it's Glance at the cursor. |
+
+Two things work across all looks, both on by default:
+
+- **Hold Shift for the Ledger.** While you hold Shift, any look becomes the Ledger. Let go and your look comes back. (`/kt shift`)
+- **The Ledger shrinks in combat.** When your look is the Ledger, it's Glance while you fight. (`/kt combat`)
+
+NPCs that sell, train or fly you show what they do (Hearthstone, Food & drink, Flights, Bank, Training, ...) instead of a health bar, read from their English title. Their name loses the title the role already says ("Boorand Plainswind", the innkeeper).
+
+### The first eight
 
 | Style | What it looks like |
 | --- | --- |
@@ -19,13 +39,13 @@ Creatures and players get a card in the game's own style (gold border, dark ston
 
 Every style can show every field below; you choose which, per style (see **What's on the card**).
 
-**Compare them**: `/kt compare` (or **Compare all** in the options, or shift-click the minimap button) opens a window with all eight side by side. It shows a sample wolf until you hover a unit; then every style shows that unit, and keeps it after the mouse leaves. Click a style to use it.
+**Compare them**: `/kt compare` (or **Compare all** in the options, or shift-click the minimap button) opens a window with all twelve side by side. It shows a sample wolf until you hover a unit; then every style shows that unit, and keeps it after the mouse leaves. Click a style to use it.
 
-To switch: step through them in the options (< and >), `/kt style plate` or just `/kt plate`, or right-click the minimap button for the next one. `/kt styles` lists them.
+To switch: step through them in the options (< and >), `/kt style ledger` or just `/kt ledger`, or right-click the minimap button for the next one. `/kt styles` lists them.
 
-![All eight styles with the sample wolf](assets/screenshots/2-compare-creature.png)
+![All twelve styles with the sample wolf](assets/screenshots/2-compare-creature.png)
 
-![All eight styles with a friendly player](assets/screenshots/3-compare-player.png)
+![All twelve styles with a friendly player](assets/screenshots/3-compare-player.png)
 
 ## Width, height and the bar
 
@@ -97,8 +117,10 @@ The game builds unit tooltips (creatures and players) on their own path, apart f
 | `/kt mouse` | Show the card next to the mouse |
 | `/kt tooltip` | Show the card where the game puts tooltips |
 | `/kt style` | Switch to the next style, or `/kt style plate` (or just `/kt plate`) |
-| `/kt styles` | List the eight styles |
-| `/kt compare` | All eight styles side by side; hover a unit to fill them |
+| `/kt styles` | List the twelve styles |
+| `/kt compare` | All twelve styles side by side; hover a unit to fill them |
+| `/kt shift` | Holding Shift opens the Ledger, or not |
+| `/kt combat` | The Ledger shrinks to Glance in combat, or not |
 | `/kt width 0.8` | This style's width (0.6 to 1.6) |
 | `/kt height 1.2` | This style's height (0.6 to 1.6) |
 | `/kt show group` | Show or hide a field on this style: type, title, rank, health, target, quests, group, other, guild, friends |
@@ -112,7 +134,7 @@ The game builds unit tooltips (creatures and players) on their own path, apart f
 
 ## Install
 
-Copy the `Krakentip` folder into the game's `Interface\AddOns` folder.
+Unzip `Krakentip-<version>.zip` into the game's `Interface\AddOns` folder, so that you have `Interface\AddOns\Krakentip\Krakentip.toc`. Or copy this repository's addon files into a folder named `Krakentip` there. `python3 tools/package.py` builds the zip into `dist/`.
 
 ## Development
 

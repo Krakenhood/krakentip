@@ -297,4 +297,13 @@ function UnitIsUnit(a, b)
     return x ~= nil and y ~= nil and x.guid == y.guid
 end
 
-KNOWN_EVENTS = { ADDON_LOADED = true, PLAYER_LOGIN = true }
+KNOWN_EVENTS = { ADDON_LOADED = true, PLAYER_LOGIN = true, MODIFIER_STATE_CHANGED = true, PLAYER_REGEN_DISABLED = true, PLAYER_REGEN_ENABLED = true }
+
+-- in a fight or not; nameplates, by unit token
+COMBAT = false
+function UnitAffectingCombat(u) return u == "player" and COMBAT end
+PLATES = {}
+C_NamePlate = { GetNamePlateForUnit = function(u) return PLATES[u] end }
+function UnitIsPVP(u) local x = U(u); return x and x.pvp or false end
+function UnitInParty(u) local x = U(u); return x and x.inParty or false end
+function UnitInRaid(u) return nil end
