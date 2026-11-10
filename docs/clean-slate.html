@@ -1,0 +1,600 @@
+<title>Krakentip Clean Slate</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap">
+<style>
+/* Layout: a field manual. A narrow reading column for the reasoning, wide stages
+   where the tooltips sit in small night-time scenes, as they would in the game. */
+:root {
+  /* the page: one dark look on purpose, the world the tooltips live in */
+  --night: #0b0d16;
+  --slate: #141829;
+  --rule: #2a2f47;
+  --parch: #ece6d6;
+  --dust: #a3a2b4;
+  --faint: #6f7089;
+  --gold: #ffd100;
+  /* the tooltips: the game's own colours */
+  --tip-bg: rgba(7, 8, 18, .93);
+  --tip-edge: #6f7488;
+  --tip-line: #262a3d;
+  --tip-text: #ffffff;
+  --tip-dim: #a7a9ba;
+  --quest: #ffd100;
+  --hostile: #ff4a3a;
+  --neutral: #ffd52a;
+  --friendly: #48e04f;
+  --tapped: #8e8e8e;
+  --elite: #d6a634;
+  --rare: #c3ccdb;
+  --boss: #c0392b;
+  --you: #ff5a4a;
+  --con-grey: #9d9d9d;
+  --con-green: #40c040;
+  --con-yellow: #ffe23a;
+  --con-orange: #ff8a3d;
+  --con-red: #ff2a2a;
+  --title: 'Marcellus', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  --body: 'Alegreya Sans', 'Gill Sans', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--night); color: var(--parch); }
+body { font-family: var(--body); font-size: 16px; line-height: 1.55; margin: 0; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 36px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--title); font-weight: 400; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.eyebrow { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+.read { max-width: 66ch; }
+.muted { color: var(--dust); }
+
+/* header */
+.intro { display: grid; gap: 14px; }
+.intro h1 { font-size: clamp(40px, 7vw, 68px); line-height: 1.02; color: var(--parch); }
+.intro h1 em { font-style: normal; color: var(--gold); }
+.intro .lede { font-size: 19px; max-width: 60ch; }
+.note { font-size: 14px; color: var(--faint); }
+
+/* section heads */
+.head { display: grid; gap: 8px; }
+.head h2 { font-size: clamp(26px, 3.6vw, 34px); color: var(--parch); }
+
+/* the five questions */
+.questions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+.questions > div { background: var(--night); padding: 16px 16px 18px; display: grid; gap: 6px; align-content: start; }
+.questions b { font-family: var(--title); font-weight: 400; font-size: 19px; color: var(--parch); }
+.questions span { font-size: 14.5px; color: var(--dust); }
+
+/* the four */
+.four { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 22px; }
+.style { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.style h3 { font-size: 26px; color: var(--gold); }
+.style .tag { font-size: 16px; color: var(--parch); }
+.style dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 14px; }
+.style dt { color: var(--faint); }
+.style dd { margin: 0; color: var(--dust); }
+
+/* stages: a scrap of the game world behind each tooltip */
+.stage { position: relative; border-radius: 4px; overflow: hidden; min-height: 132px;
+  background: radial-gradient(120% 90% at 25% 115%, #4b3b22 0%, #2b2418 38%, #151522 74%, #0d0f1a 100%); }
+.stage.forest { background: radial-gradient(120% 90% at 30% 115%, #2f4a26 0%, #1d2c1c 40%, #121a1d 75%, #0c1018 100%); }
+.stage.town { background: radial-gradient(110% 90% at 70% 110%, #5a3a1d 0%, #33241a 40%, #1a1720 78%, #0e0f18 100%); }
+.stage.crypt { background: radial-gradient(120% 90% at 50% 120%, #23314a 0%, #172034 42%, #10131f 78%, #0b0d16 100%); }
+.stage.cursor { padding: 30px 14px 18px 32px; }
+.stage.cursor > .ptr { position: absolute; left: 12px; top: 8px; width: 15px; height: 21px; }
+.stage.plate { display: flex; flex-direction: column; align-items: center; padding: 20px 12px 26px; }
+.stage .fallback { font-size: 12.5px; color: var(--dust); margin-top: 10px; max-width: 34ch; }
+.stage.plate .fallback { text-align: center; }
+
+/* the try-it bench */
+.bench { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 760px) { .bench { grid-template-columns: 1fr; } }
+.controls { display: grid; gap: 16px; }
+.controls fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.controls legend { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); padding: 0; margin-bottom: 6px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button, .toggle { font: inherit; font-size: 15px; color: var(--parch); background: var(--slate); border: 1px solid var(--rule);
+  padding: 6px 12px; border-radius: 3px; cursor: pointer; }
+.seg button[aria-pressed="true"], .toggle[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); background: #1d1a12; }
+.seg button:focus-visible, .toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+kbd { font-family: var(--body); font-size: 13px; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 3px; padding: 0 5px; background: var(--slate); }
+.why { font-size: 15px; color: var(--dust); min-height: 3em; }
+.bench .stage { min-height: 230px; }
+
+/* every situation */
+.sits { display: grid; gap: 40px; }
+.sit { display: grid; gap: 12px; }
+.sit > header { display: grid; gap: 4px; }
+.sit h3 { font-size: 22px; color: var(--parch); }
+.sit p { font-size: 15px; color: var(--dust); max-width: 80ch; }
+.cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 14px; }
+.cell { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.cell figcaption { font-family: var(--title); font-size: 16px; color: var(--dust); }
+
+/* the rules */
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 26px 32px; }
+.rule { display: grid; gap: 10px; align-content: start; }
+.rule h3 { font-size: 20px; color: var(--parch); }
+.rule p { font-size: 15px; color: var(--dust); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 14px; color: var(--dust); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 4px; height: 18px; border-radius: 1px; display: inline-block; }
+.lvsw { font-weight: 700; font-family: var(--body); }
+
+/* the game */
+.facts { display: grid; gap: 12px; max-width: 76ch; }
+.facts p { font-size: 16px; color: var(--dust); }
+.facts b { color: var(--parch); font-weight: 500; }
+footer { font-size: 14px; color: var(--faint); border-top: 1px solid var(--rule); padding-top: 18px; max-width: 90ch; }
+
+/* =================================================================== tooltips */
+.tip { position: relative; font-family: var(--body); color: var(--tip-text); background: var(--tip-bg);
+  border: 1px solid var(--tip-edge); border-radius: 3px; line-height: 1.25;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .85), 0 6px 18px rgba(0, 0, 0, .55); }
+.tip .spine { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 3px 0 0 3px; }
+.tip.elite { border-color: var(--elite); }
+.tip.rare { border-color: var(--rare); }
+.tip.boss { border-color: var(--boss); }
+.tip.onyou { box-shadow: 0 0 0 1px rgba(0, 0, 0, .85), 0 0 12px 2px rgba(255, 50, 35, .55), 0 6px 18px rgba(0, 0, 0, .55); }
+.tip .nm { font-family: var(--title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tip .lv { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tip svg { display: block; flex: none; }
+.out { text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; }
+.orn { position: absolute; left: -9px; top: -9px; width: 30px; height: 30px; pointer-events: none; }
+
+/* Whisper: one line */
+.whisper { display: inline-grid; gap: 1px; padding: 3px 9px 5px 10px; font-size: 13px; max-width: 100%; }
+.w-1, .w-2 { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+.w-2 { font-size: 11.5px; color: var(--tip-dim); gap: 5px; }
+.w-2 > span { overflow: hidden; text-overflow: ellipsis; }
+.whisper .nm { font-size: 13.5px; }
+.whisper .ul { position: absolute; left: 3px; bottom: 0; height: 2px; border-radius: 0 0 2px 0; }
+.whisper .ulbg { position: absolute; left: 3px; right: 0; bottom: 0; height: 2px; background: #1b1d2a; }
+.w-you { font-size: 10.5px; letter-spacing: .1em; color: var(--you); font-weight: 700; }
+.w-q { font-size: 12px; color: var(--quest); font-weight: 700; font-variant-numeric: tabular-nums; }
+.w-tap { font-size: 11px; color: var(--tapped); font-style: italic; }
+.w-role { font-size: 11.5px; color: var(--tip-dim); }
+
+/* Glance: two rows for fighting */
+.glance { width: 230px; padding: 6px 8px 7px 11px; display: grid; gap: 5px; }
+.g-top { display: flex; align-items: center; gap: 6px; min-height: 26px; }
+.g-lv { min-width: 27px; height: 19px; padding: 0 4px; display: grid; place-items: center; font-size: 12.5px;
+  border: 1px solid #3a3e52; background: #0e1020; border-radius: 2px; }
+.g-top .nm { font-size: 15px; flex: 1; }
+.bar { position: relative; height: 13px; background: #05060c; border: 1px solid #2c3042; border-radius: 1px; }
+.bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(rgba(255,255,255,.22), rgba(0,0,0,.28)); }
+.bar > b { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 4px;
+  font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.g-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--tip-dim); min-height: 16px; }
+.g-foot .tgt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pips { display: flex; gap: 5px; align-items: flex-end; }
+.pip { display: grid; gap: 2px; justify-items: center; width: 20px; }
+.pip em { font-style: normal; font-size: 10px; font-weight: 700; line-height: 1; }
+.pip s { display: block; width: 20px; height: 4px; background: #1d2030; position: relative; text-decoration: none; }
+.pip s > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--quest); }
+.pip.done s > i { background: var(--friendly); }
+
+/* Ledger: the full read */
+.ledger { width: 254px; padding: 8px 10px 9px 12px; display: grid; gap: 3px; font-size: 13px; }
+.l-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.l-row > :first-child { min-width: 0; }
+.ledger .nm { font-size: 17px; }
+.l-rank { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.l-dim { color: var(--tip-dim); }
+.l-title { color: var(--quest); }
+.l-bar { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; margin-block: 3px 1px; }
+.l-bar .bar { height: 8px; }
+.l-bar small { font-size: 11.5px; color: var(--tip-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.l-sec { margin-top: 5px; padding-top: 6px; border-top: 1px solid var(--tip-line); display: grid; gap: 3px; }
+.q-row { display: grid; grid-template-columns: minmax(0, 1fr) 56px 30px; gap: 7px; align-items: center; font-size: 12.5px; }
+.q-row > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-mini { height: 4px; background: #1d2030; position: relative; }
+.q-mini > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--quest); }
+.q-row.done .q-mini > i { background: var(--friendly); }
+.q-row b { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; padding: 1px 6px; border: 1px solid #30354b; border-radius: 2px; color: #d9d6cc; white-space: nowrap; }
+.chip svg { width: 12px; height: 12px; }
+
+/* Banner: hangs from the nameplate */
+.np { width: 124px; display: grid; gap: 2px; justify-items: center; }
+.np-name { font-size: 11.5px; font-family: var(--body); white-space: nowrap; }
+.np-bar { width: 124px; height: 8px; border: 1px solid #000; background: #2a0b08; position: relative; }
+.np-bar > i { position: absolute; left: 0; top: 0; bottom: 0; }
+.banner { margin-top: 9px; display: inline-grid; justify-items: center; gap: 2px; padding: 3px 8px 4px; font-size: 12px; }
+.b-1 { display: flex; align-items: center; gap: 7px; }
+.b-2 { font-size: 11px; color: var(--tip-dim); white-space: nowrap; }
+.banner::before { content: ""; position: absolute; top: -5px; left: 50%; width: 8px; height: 8px; transform: translateX(-50%) rotate(45deg);
+  background: #07081a; border-left: 1px solid; border-top: 1px solid; border-color: inherit; }
+.banner .b-tap { color: var(--tapped); font-style: italic; }
+.silhouette { width: 120px; height: 54px; margin-top: 12px; border-radius: 50% 50% 42% 42%;
+  background: radial-gradient(60% 70% at 50% 40%, rgba(60, 50, 44, .9), rgba(20, 17, 15, .0) 72%); }
+@media (prefers-reduced-motion: no-preference) {
+  .tip.onyou { animation: you 1.6s ease-in-out infinite alternate; }
+  @keyframes you { from { box-shadow: 0 0 0 1px rgba(0,0,0,.85), 0 0 6px 1px rgba(255,50,35,.35), 0 6px 18px rgba(0,0,0,.55); }
+                   to { box-shadow: 0 0 0 1px rgba(0,0,0,.85), 0 0 14px 3px rgba(255,50,35,.65), 0 6px 18px rgba(0,0,0,.55); } }
+}
+</style>
+
+<div class="wrap">
+
+<header class="intro">
+  <p class="eyebrow">Krakentip · from a blank page</p>
+  <h1>Four tooltips, <em>one family</em></h1>
+  <p class="lede">Tooltip styles for WoW Classic and Forever, designed from scratch. Each one carries everything the game's own tooltip tells you; they differ in how much room they take. They share one look and one set of rules, so you can switch between them freely, and the game can switch for you when you fight.</p>
+  <p class="note">Concept mockups: nothing here is built yet. You are Krakenhood, a level 21 warrior. Fonts and art are stand-ins for the game's.</p>
+</header>
+
+<section class="head read" aria-labelledby="h-for">
+  <h2 id="h-for">What a tooltip is for</h2>
+  <p class="muted">When you hover something you are deciding a handful of things in under a second. Every mark on these tooltips answers one of them, and nothing is there that doesn't.</p>
+</section>
+<div class="questions" role="list">
+  <div role="listitem"><b>Is it dangerous?</b><span>The level's colour (grey to red, a skull for far above you) and the rank mark on the frame.</span></div>
+  <div role="listitem"><b>Is it mine to kill?</b><span>Grey name, grey edge and "tapped" when someone else got the first hit.</span></div>
+  <div role="listitem"><b>Do I need it?</b><span>The quest ring: your count at a glance, and your group's.</span></div>
+  <div role="listitem"><b>Who is it after?</b><span>The target under the bar, and a red glow round the frame when it's you.</span></div>
+  <div role="listitem"><b>What can it do for me?</b><span>For NPCs, their role and services instead of health they'll never lose.</span></div>
+</div>
+
+<section class="head" aria-labelledby="h-four">
+  <h2 id="h-four">The four</h2>
+</section>
+<div class="four" id="four"></div>
+
+<section class="head read" aria-labelledby="h-try">
+  <h2 id="h-try">How they work together</h2>
+  <p class="muted">Pick the style you want every day. Holding <kbd>Shift</kbd> opens the Ledger from any of them, and letting go puts yours back. If your everyday style is the Ledger, it shrinks to Glance while you're in combat. Try it.</p>
+</section>
+<div class="bench">
+  <div class="controls">
+    <fieldset><legend>Everyday style</legend><div class="seg" id="c-style"></div></fieldset>
+    <fieldset><legend>Hovering</legend><div class="seg" id="c-unit"></div></fieldset>
+    <fieldset><legend>State</legend><div class="toggles">
+      <button class="toggle" id="c-shift" type="button" aria-pressed="false">Hold <kbd>Shift</kbd></button>
+      <button class="toggle" id="c-combat" type="button" aria-pressed="false">In combat</button>
+    </div></fieldset>
+    <p class="why" id="c-why" aria-live="polite"></p>
+  </div>
+  <div id="c-stage"></div>
+</div>
+
+<section class="head read" aria-labelledby="h-sits">
+  <h2 id="h-sits">Every situation</h2>
+  <p class="muted">The same eight units in all four styles. Each style shows the same facts in the same places, so switching never means relearning.</p>
+</section>
+<div class="sits" id="sits"></div>
+
+<section class="head" aria-labelledby="h-rules">
+  <h2 id="h-rules">The rules they share</h2>
+</section>
+<div class="rules">
+  <div class="rule"><h3>The game's essentials, in every style</h3>
+    <p>Whatever the style, you get what the game's own tooltip gives: name, level, type (race and class for players), elite, rare or boss, health, quest progress and who it's attacking. Players add guild, faction and PvP; NPCs their title. The small styles write it shorter, never leave it out.</p></div>
+  <div class="rule"><h3>The edge says who it is to you</h3>
+    <p>A coloured edge on the left, readable from the corner of your eye: hostile, neutral, friendly, tapped. Players get their class colour. When it's attacking you, the whole frame glows red.</p>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--hostile)"></i>Hostile</span>
+      <span><i class="sw" style="background:var(--neutral)"></i>Neutral</span>
+      <span><i class="sw" style="background:var(--friendly)"></i>Friendly</span>
+      <span><i class="sw" style="background:var(--tapped)"></i>Tapped</span>
+      <span><i class="sw" style="background:#fff569"></i>Rogue</span>
+    </div></div>
+  <div class="rule"><h3>The level's colour says how hard</h3>
+    <p>The game's own con colours, measured against your level. No words needed.</p>
+    <div class="legend">
+      <span class="lvsw" style="color:var(--con-grey)">11 trivial</span>
+      <span class="lvsw" style="color:var(--con-green)">17 easy</span>
+      <span class="lvsw" style="color:var(--con-yellow)">21 even</span>
+      <span class="lvsw" style="color:var(--con-orange)">24 hard</span>
+      <span class="lvsw" style="color:var(--con-red)">27 very hard</span>
+    </div></div>
+  <div class="rule"><h3>The frame says what kind</h3>
+    <p>As on the target frame: a gold dragon corner for elites, silver for rares, a red frame and a skull for bosses. On the small styles a "+" after the level means elite.</p>
+    <div class="legend" id="rank-legend"></div></div>
+  <div class="rule"><h3>Everything has its place</h3>
+    <p>Level top left, quest top right, health in the middle, target below it. When something is missing its space closes, but nothing ever swaps places, so your eyes learn where to look.</p></div>
+  <div class="rule"><h3>Friends get different questions</h3>
+    <p>An innkeeper won't lose health, so NPCs show their role and services instead of a bar. Players show class, guild, PvP flag, and where they are when they're in your party.</p></div>
+  <div class="rule"><h3>The whole party in one row</h3>
+    <p>Group quest progress is a row of small bars, one per member with their initial in class colour, instead of a line per person. A full party still fits in Glance.</p></div>
+</div>
+
+<section class="head read" aria-labelledby="h-game">
+  <h2 id="h-game">What it takes in the game</h2>
+</section>
+<div class="facts">
+  <p><b>Everything shown is something the game hands to addons:</b> name, level, rank, health (as a bar when the game hides the numbers), target, tapped, the quest and party lines and the zone line of the game's own tooltip.</p>
+  <p><b>Banner</b> attaches to the creature's nameplate, so it needs nameplates switched on. Where a unit has no nameplate (a unit frame, a party member far away, places where the game keeps nameplates from addons), it falls back to Glance at the cursor.</p>
+  <p><b>NPC services</b> come from the NPC's title (Innkeeper, Flight Master, Weapon Merchant). A title the addon doesn't know is shown as it is.</p>
+  <p><b>Shift and combat</b> are both events the game sends the moment they happen, so the switch is instant.</p>
+  <p><b>Out of reach:</b> how far away a creature is, and what it drops. No style shows either.</p>
+</div>
+
+<footer>All units are examples. Timberling Ravager is a level 24 elite wolf for the quest "Ravaged Pelts"; your party is Jokke (rogue), Thalianne (warrior), Mira (priest) and Brokk (hunter).</footer>
+</div>
+
+<script>
+(() => {
+  // ------------------------------------------------------------ the world
+  const CLS = { rogue: '#fff569', warrior: '#c79c6e', mage: '#69ccf0', druid: '#ff7d0a', priest: '#f2f2f2', hunter: '#abd473' };
+  const CON = { grey: 'var(--con-grey)', green: 'var(--con-green)', yellow: 'var(--con-yellow)', orange: 'var(--con-orange)', red: 'var(--con-red)', skull: 'var(--con-red)' };
+  const REACT = { hostile: 'var(--hostile)', neutral: 'var(--neutral)', friendly: 'var(--friendly)' };
+
+  const wolf = { name: 'Timberling Ravager', level: 24, con: 'orange', rank: 'elite', reaction: 'hostile', kind: 'creature',
+    type: 'Beast', family: 'Wolf', hp: 62, hpText: '1,116 / 1,800', target: { name: 'You', you: true },
+    quest: { title: 'Ravaged Pelts', objective: 'Ravaged Pelt', need: 8, mine: 3 }, notes: ['Skinnable'], biome: 'forest' };
+  const U = {
+    wolf,
+    party: Object.assign({}, wolf, { quest: { title: 'Ravaged Pelts', objective: 'Ravaged Pelt', need: 8, mine: 3,
+      party: [{ name: 'Jokke', cls: 'rogue', have: 5 }, { name: 'Thalianne', cls: 'warrior', have: 8 }, { name: 'Mira', cls: 'priest', have: 1 }, { name: 'Brokk', cls: 'hunter', have: 6 }] } }),
+    tapped: { name: 'Bristleback Thornweaver', level: 19, con: 'green', reaction: 'hostile', tapped: true, kind: 'creature',
+      type: 'Humanoid', family: 'Quilboar', hp: 41, hpText: '41%', target: { name: 'Sneakystab', cls: 'rogue' }, biome: '' },
+    rare: { name: 'Ressan the Needler', level: 11, con: 'grey', rank: 'rare', reaction: 'hostile', kind: 'creature',
+      type: 'Beast', family: 'Spider', hp: 100, hpText: '262 / 262', target: null, biome: 'forest' },
+    boss: { name: 'Edwin VanCleef', level: null, con: 'skull', rank: 'boss', reaction: 'hostile', kind: 'creature',
+      type: 'Humanoid', hp: 85, hpText: '85%', hidden: true, target: { name: 'Thalianne', cls: 'warrior' }, biome: 'crypt' },
+    inn: { name: 'Innkeeper Boorand Plainswind', level: 30, reaction: 'friendly', kind: 'npc', type: 'Humanoid',
+      npc: { title: 'Innkeeper', icon: 'mug', services: ['Hearthstone', 'Food & drink'] }, biome: 'town' },
+    jokke: { name: 'Jokke', level: 30, reaction: 'friendly', kind: 'player', hp: 71, hpText: '640 / 900', target: null,
+      player: { cls: 'rogue', race: 'Orc', className: 'Rogue', guild: 'Aurora EU', faction: 'Horde', party: true, zone: 'Orgrimmar', far: true }, biome: 'town' },
+    enemy: { name: 'Sneakystab', level: 23, con: 'yellow', reaction: 'hostile', kind: 'player', hp: 100, hpText: '1,040 / 1,040',
+      target: { name: 'You', you: true }, player: { cls: 'rogue', race: 'Human', className: 'Rogue', guild: 'Shadow Council', faction: 'Alliance', pvp: true }, biome: '' },
+  };
+
+  const SITS = [
+    ['wolf', 'A quest creature attacking you', 'Elite, three levels above you, needed for your quest, and it is after you. The most urgent tooltip there is.'],
+    ['party', 'The same wolf, your whole party on the quest', 'Five people, five counts. Glance and Banner show them as a row of small bars; the Ledger as a short table.'],
+    ['tapped', 'Tapped by someone else', 'Another player hit it first, so it is no use to you. Everything goes grey; you can move on without reading.'],
+    ['rare', 'A rare, below your level', 'Silver frame for rare, grey level because it is far below you. Still worth a look for the loot.'],
+    ['boss', 'A boss whose health the game hides', 'A skull for the level and a red frame. The bar fills from the game even when it hides the numbers.'],
+    ['inn', 'A friendly NPC', 'No health bar: an innkeeper will not lose any. Role and services instead. The title in the name is dropped, since the role already says it.'],
+    ['jokke', 'A party member in another zone', 'Class colour, guild, and where he is. Hovered on the party frame, so Banner falls back to Glance.'],
+    ['enemy', 'An enemy player, flagged for PvP', 'An Alliance rogue: class colour on the edge, the PvP flag, guild and faction, and the red glow because he is after you.'],
+  ];
+
+  // ------------------------------------------------------------ small pieces
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const hpColor = p => {
+    const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    const g = [64, 200, 64], y = [255, 214, 0], r = [230, 42, 30];
+    const c = p >= 50 ? mix(y, g, (p - 50) / 50) : mix(r, y, p / 50);
+    return `rgb(${c.join(',')})`;
+  };
+  const nameColor = u => u.tapped ? 'var(--tapped)' : u.kind === 'player' ? CLS[u.player.cls] : REACT[u.reaction];
+  const spineColor = u => u.tapped ? 'var(--tapped)' : u.kind === 'player' ? CLS[u.player.cls] : REACT[u.reaction];
+  const lvColor = u => u.con ? CON[u.con] : 'var(--tip-text)';
+  const plus = u => (u.rank === 'elite' || u.rank === 'rareelite') ? '+' : '';
+  // long names: earlier words become initials, the last word stays ("T. Ravager");
+  // an NPC's name loses the title its role already shows
+  const displayName = u => u.kind === 'npc' && u.name.startsWith(u.npc.title + ' ') ? u.name.slice(u.npc.title.length + 1) : u.name;
+  const shortName = (u, max) => {
+    const n = displayName(u);
+    if (n.length <= max) return n;
+    const w = n.split(' ');
+    return w.slice(0, -1).map(x => x[0] + '.').join(' ') + ' ' + w[w.length - 1];
+  };
+  const tipClass = u => ['tip', u.rank === 'elite' || u.rank === 'rareelite' ? 'elite' : '', u.rank === 'rare' ? 'rare' : '', u.rank === 'boss' ? 'boss' : '',
+    u.target && u.target.you ? 'onyou' : ''].join(' ');
+
+  const SKULL = (size, color) => `<svg width="${size}" height="${size}" viewBox="0 0 16 16" aria-label="Skull: far above you"><path fill="${color}" d="M8 1.4C4.6 1.4 2.4 3.8 2.4 6.7c0 1.8.9 3.1 2.1 3.8v2.1c0 .6.4 1 1 1h.7v-1.4h1.1v1.4h1.4v-1.4h1.1v1.4h.7c.6 0 1-.4 1-1v-2.1c1.2-.7 2.1-2 2.1-3.8 0-2.9-2.2-5.3-5.6-5.3z"/><circle cx="5.9" cy="7.1" r="1.45" fill="#07081a"/><circle cx="10.1" cy="7.1" r="1.45" fill="#07081a"/></svg>`;
+  const RING = (have, need, size) => {
+    const r = size / 2 - 2.5, c = 2 * Math.PI * r, f = Math.min(1, have / need), done = have >= need;
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-label="Quest: ${have} of ${need}">
+      <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="#0e1020" stroke="#3a3320" stroke-width="3"/>
+      <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${done ? '#48e04f' : '#ffd100'}" stroke-width="3"
+        stroke-dasharray="${(c * f).toFixed(2)} ${c.toFixed(2)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
+      <text x="50%" y="53%" dominant-baseline="middle" text-anchor="middle" font-family="Alegreya Sans, sans-serif" font-weight="700"
+        font-size="${size < 24 ? 8 : 9}" fill="#ffe9a0">${have}/${need}</text></svg>`;
+  };
+  const ORN = rank => {
+    const fill = rank === 'rare' ? '#cfd6e2' : '#e7b93e', edge = rank === 'rare' ? '#5c6472' : '#5a3d0a';
+    return `<svg class="orn" viewBox="0 0 30 30" aria-hidden="true"><path fill="${fill}" stroke="${edge}" stroke-width=".8"
+      d="M2 28C2 14 9 5 27 2c-8 4-13 8-15.5 14C15 12 19 10 25 9.5 17 13 13 18 11.5 26 9 23 6 25 2 28z"/>
+      <path fill="${fill}" stroke="${edge}" stroke-width=".6" d="M4 24c1-6 3-10 7-13-2 4-3 7-3 11z" opacity=".75"/></svg>`;
+  };
+  const PVP = `<svg width="13" height="13" viewBox="0 0 16 16" aria-label="PvP flagged"><path fill="#c0392b" d="M3 1.5h1.4v13H3z"/><path fill="#e74c3c" stroke="#5c120c" stroke-width=".6" d="M4.4 2h9l-2.4 3.2L13.4 8.5h-9z"/></svg>`;
+  const PIN = `<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path fill="#9fd6ff" d="M8 1a5 5 0 0 0-5 5c0 3.8 5 9 5 9s5-5.2 5-9a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>`;
+  const ICONS = {
+    mug: `<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path fill="#d9a441" d="M3 4h7v9H3z"/><path fill="none" stroke="#d9a441" stroke-width="1.6" d="M10 6h2a1.6 1.6 0 0 1 0 3.2h-2"/><path fill="#fff4d6" d="M3 3.2h7V5H3z"/></svg>`,
+    stone: `<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><ellipse cx="8" cy="8.5" rx="5.5" ry="6" fill="#7fb5d9"/><path d="M5.5 6.5h5M5.5 9h5" stroke="#1c3a52" stroke-width="1.2"/></svg>`,
+    food: `<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="9" r="5.5" fill="#c8823b"/><path d="M5 7.5c1-1 5-1 6 0" stroke="#f2d39b" stroke-width="1.2" fill="none"/></svg>`,
+  };
+  const SERVICE_ICON = { 'Hearthstone': ICONS.stone, 'Food & drink': ICONS.food };
+  const CURSOR = `<svg class="ptr" viewBox="0 0 15 21" aria-hidden="true"><path fill="#d9c08a" stroke="#3b2a12" stroke-width="1.1" stroke-linejoin="round" d="M1.2 1.2v15.6l3.9-3.7 2.9 6.6 2.7-1.2-2.8-6.5h5.4z"/></svg>`;
+
+  // what it is: "Beast · Wolf", "Human Rogue", "<Innkeeper> Humanoid"
+  const kindText = u => u.kind === 'player' ? `${u.player.race} ${u.player.className}`
+    : u.kind === 'npc' ? `<${u.npc.title}> ${u.type}` : [u.type, u.family].filter(Boolean).join(' · ');
+  const rankWord = u => u.rank === 'elite' ? '<b style="color:var(--elite);font-weight:500">Elite</b>'
+    : u.rank === 'rare' ? '<b style="color:var(--rare);font-weight:500">Rare</b>'
+    : u.rank === 'boss' ? '<b style="color:var(--boss);font-weight:500">Boss</b>' : '';
+  const targetHtml = (u, upper) => u.target ? `<span style="color:${u.target.you ? 'var(--you)' : CLS[u.target.cls] || 'var(--tip-dim)'};${u.target.you ? 'font-weight:700' : ''}">→ ${esc(u.target.you && upper ? 'YOU' : u.target.name)}</span>` : '';
+
+  const healthBar = (u, height, cls) => {
+    const p = u.hp;
+    return `<div class="bar ${cls || ''}" style="height:${height}px" aria-label="Health ${p}%"><i style="width:${p}%;background-color:${hpColor(p)}"></i></div>`;
+  };
+
+  // ------------------------------------------------------------ Whisper
+  function whisper(u) {
+    const lv = u.con === 'skull' ? SKULL(13, 'var(--con-red)') : `<span class="lv" style="color:${lvColor(u)}">${u.level}${plus(u)}</span>`;
+    const rare = u.rank === 'rare' ? `<svg width="8" height="8" viewBox="0 0 8 8" aria-label="Rare"><path d="M4 0l4 4-4 4-4-4z" fill="#cfd6e2"/></svg>` : '';
+    // line one: level, name, and the one thing to act on: it's after you, or your quest count
+    let flag = '';
+    if (u.target && u.target.you) flag = `<b class="w-you">YOU</b>`;
+    if (u.quest) flag += `<b class="w-q">${u.quest.mine}/${u.quest.need}</b>`;
+    if (u.player && u.player.pvp) flag += PVP;
+    // line two: the rest of what the game's tooltip says, short
+    const two = [];
+    const rw = rankWord(u);
+    two.push(`<span>${rw ? rw + ' ' : ''}${esc(kindText(u))}</span>`);
+    if (u.player && u.player.guild) two.push(`<span>&lt;${esc(u.player.guild)}&gt;</span>`);
+    if (u.kind !== 'npc') two.push(`<span style="color:${hpColor(u.hp)}">${u.hp}%</span>`);
+    if (u.target && !u.target.you) two.push(targetHtml(u));
+    if (u.player && u.player.zone) two.push(`<span style="display:inline-flex;gap:3px;align-items:center">${PIN}${esc(u.player.zone)}</span>`);
+    if (u.tapped) two.push(`<i class="w-tap">tapped</i>`);
+    if (u.quest && u.quest.party) two.push(`<span class="w-q" style="font-weight:500">party ${u.quest.party.map(m => m.have).join(' ')}</span>`);
+    const ul = u.kind === 'npc' ? '' : `<i class="ulbg"></i><i class="ul" style="width:calc((100% - 3px) * ${u.hp / 100});background:${hpColor(u.hp)}"></i>`;
+    return `<div class="${tipClass(u)} whisper"><i class="spine" style="background:${spineColor(u)}"></i>
+      <div class="w-1">${lv}${rare}<span class="nm" style="color:${nameColor(u)}">${esc(shortName(u, 18))}</span>${flag}</div>
+      <div class="w-2">${two.join('<span aria-hidden="true">·</span>')}</div>${ul}</div>`;
+  }
+
+  // ------------------------------------------------------------ Glance
+  function glance(u) {
+    const lvInner = u.con === 'skull' ? SKULL(14, 'var(--con-red)') : `<span class="lv" style="color:${lvColor(u)}">${u.level}${plus(u)}</span>`;
+    const right = u.quest ? RING(u.quest.mine, u.quest.need, 28)
+      : u.rank === 'rare' ? `<span class="l-rank" style="color:var(--rare)">Rare</span>`
+      : u.player && u.player.pvp ? PVP : '';
+    let mid = '', foot = '', extra = '';
+    if (u.kind === 'npc') {
+      mid = `<div class="chips">${u.npc.services.map(sv => `<span class="chip">${SERVICE_ICON[sv] || ''}${esc(sv)}</span>`).join('')}</div>`;
+      foot = `<span class="tgt" style="display:inline-flex;gap:5px;align-items:center">${ICONS[u.npc.icon]}&lt;${esc(u.npc.title)}&gt;</span><span>${esc(u.type)}</span>`;
+    } else {
+      mid = `<div class="bar" aria-label="Health ${u.hp}%"><i style="width:${u.hp}%;background-color:${hpColor(u.hp)}"></i>
+        <b class="out"><span>${u.hidden ? '' : esc(u.hpText.includes('/') ? u.hpText.split(' / ')[0] : '')}</span><span>${u.hp}%</span></b></div>`;
+      // left: who it's after (or where a party member is, or tapped); right: what it is
+      const left = u.target ? `<span class="tgt">${targetHtml(u)}</span>`
+        : u.player && u.player.zone ? `<span class="tgt" style="display:inline-flex;gap:4px;align-items:center">${PIN}${esc(u.player.zone)}</span>`
+        : u.tapped ? `<i class="w-tap">tapped</i>` : '<span></span>';
+      foot = `${left}<span style="white-space:nowrap">${esc(kindText(u))}</span>`;
+      if (u.tapped && u.target) foot = `${left}<i class="w-tap">tapped</i><span style="white-space:nowrap">${esc(kindText(u))}</span>`;
+      if (u.player) extra = `<div class="g-foot"><span>&lt;${esc(u.player.guild)}&gt;</span><span>${esc(u.player.faction)}</span></div>`;
+    }
+    let pips = '';
+    if (u.quest && u.quest.party) {
+      const all = [{ name: 'You', cls: 'self', have: u.quest.mine }].concat(u.quest.party);
+      pips = `<div class="g-foot"><span>Party</span><div class="pips">${all.map(m => {
+        const done = m.have >= u.quest.need;
+        return `<span class="pip${done ? ' done' : ''}" title="${esc(m.name)} ${m.have}/${u.quest.need}"><em style="color:${m.cls === 'self' ? '#fff' : CLS[m.cls]}">${m.name[0]}</em><s><i style="width:${Math.round(100 * m.have / u.quest.need)}%"></i></s></span>`;
+      }).join('')}</div></div>`;
+    }
+    return `<div class="${tipClass(u)} glance">${u.rank && u.rank !== 'boss' ? ORN(u.rank === 'rare' ? 'rare' : 'elite') : ''}<i class="spine" style="background:${spineColor(u)}"></i>
+      <div class="g-top"><span class="g-lv">${lvInner}</span><span class="nm" style="color:${nameColor(u)}">${esc(shortName(u, 19))}</span>${right}</div>
+      ${mid}<div class="g-foot">${foot}</div>${extra}${pips}</div>`;
+  }
+
+  // ------------------------------------------------------------ Ledger
+  function ledger(u) {
+    const rank = u.rank === 'elite' ? `<span class="l-rank" style="color:var(--elite)">Elite</span>`
+      : u.rank === 'rare' ? `<span class="l-rank" style="color:var(--rare)">Rare</span>`
+      : u.rank === 'boss' ? `<span class="l-rank" style="color:var(--boss)">Boss</span>`
+      : u.player && u.player.pvp ? `<span class="l-rank" style="color:#e74c3c;display:inline-flex;gap:4px;align-items:center">${PVP}PvP</span>`
+      : u.player && u.player.party ? `<span class="l-rank" style="color:#9fd6ff">Party</span>` : '';
+    const lv = u.con === 'skull' ? `<span style="color:var(--con-red)">??</span>` : `<span style="color:${lvColor(u)}">${u.level}</span>`;
+    const what = u.kind === 'player' ? `${esc(u.player.race)} ${esc(u.player.className)}` : esc([u.type, u.family].filter(Boolean).join(' · '));
+    const lines = [];
+    lines.push(`<div class="l-row"><span class="nm" style="color:${nameColor(u)}">${esc(displayName(u))}</span>${rank}</div>`);
+    if (u.npc) lines.push(`<div class="l-row"><span class="l-title">&lt;${esc(u.npc.title)}&gt;</span></div>`);
+    if (u.player && u.player.guild) lines.push(`<div class="l-row"><span style="color:#7ee07e">&lt;${esc(u.player.guild)}&gt;</span></div>`);
+    lines.push(`<div class="l-row"><span>Level ${lv} ${what}</span>${u.player ? `<span class="l-dim">${esc(u.player.faction)}</span>` : u.notes ? `<span class="l-dim">${esc(u.notes[0])}</span>` : ''}</div>`);
+    if (u.tapped) lines.push(`<div class="l-row"><i class="w-tap">Tapped by another player</i></div>`);
+    if (u.kind !== 'npc') {
+      lines.push(`<div class="l-bar">${healthBar(u, 8)}<small>${u.hidden ? u.hp + '% · numbers hidden' : esc(u.hpText) + (u.hpText.includes('/') ? ' · ' + u.hp + '%' : '')}</small></div>`);
+    }
+    if (u.target) lines.push(`<div class="l-row"><span class="l-dim">Targeting</span><span style="color:${u.target.you ? 'var(--you)' : CLS[u.target.cls] || '#fff'}">${esc(u.target.name)}</span></div>`);
+    if (u.player && u.player.zone) lines.push(`<div class="l-row"><span class="l-dim">Zone</span><span style="display:inline-flex;gap:4px;align-items:center">${PIN}${esc(u.player.zone)}</span></div>`);
+    if (u.npc) lines.push(`<div class="chips">${u.npc.services.map(s => `<span class="chip">${SERVICE_ICON[s] || ''}${esc(s)}</span>`).join('')}</div>`);
+    if (u.quest) {
+      const rows = [{ name: 'You', color: '#fff', have: u.quest.mine }].concat((u.quest.party || []).map(m => ({ name: m.name, color: CLS[m.cls], have: m.have })));
+      lines.push(`<div class="l-sec"><div class="l-row"><span class="l-title">${esc(u.quest.title)}</span><span class="l-dim">${esc(u.quest.objective)}</span></div>${rows.map(r => {
+        const done = r.have >= u.quest.need;
+        return `<div class="q-row${done ? ' done' : ''}"><span style="color:${r.color}">${esc(r.name)}</span><span class="q-mini"><i style="width:${Math.round(100 * r.have / u.quest.need)}%"></i></span><b style="color:${done ? 'var(--friendly)' : 'var(--quest)'}">${r.have}/${u.quest.need}</b></div>`;
+      }).join('')}</div>`);
+    }
+    return `<div class="${tipClass(u)} ledger">${u.rank && u.rank !== 'boss' ? ORN(u.rank === 'rare' ? 'rare' : 'elite') : ''}<i class="spine" style="background:${spineColor(u)}"></i>${lines.join('')}</div>`;
+  }
+
+  // ------------------------------------------------------------ Banner
+  // only what the nameplate doesn't already show: difficulty, rank, quest, target
+  function banner(u) {
+    const bits = [];
+    bits.push(u.con === 'skull' ? SKULL(13, 'var(--con-red)') : `<span class="lv" style="color:${lvColor(u)}">${u.level}${plus(u)}</span>`);
+    if (u.rank === 'rare') bits.push(`<span class="l-rank" style="color:var(--rare)">Rare</span>`);
+    if (u.rank === 'boss') bits.push(`<span class="l-rank" style="color:var(--boss)">Boss</span>`);
+    if (u.npc) bits.push(`${ICONS[u.npc.icon]}<span class="l-dim">${esc(u.npc.title)}</span>`);
+    if (u.player && u.player.pvp) bits.push(PVP);
+    if (u.quest) bits.push(RING(u.quest.mine, u.quest.need, 22));
+    if (u.quest && u.quest.party) bits.push(`<span class="pips">${u.quest.party.map(m => `<span class="pip${m.have >= u.quest.need ? ' done' : ''}" style="width:12px" title="${esc(m.name)} ${m.have}/${u.quest.need}"><em style="color:${CLS[m.cls]}">${m.name[0]}</em><s style="width:12px"><i style="width:${Math.round(100 * m.have / u.quest.need)}%"></i></s></span>`).join('')}</span>`);
+    if (u.tapped) bits.push(`<i class="b-tap">tapped</i>`);
+    if (u.target) bits.push(`<span style="color:${u.target.you ? 'var(--you)' : CLS[u.target.cls] || '#fff'};font-weight:${u.target.you ? 700 : 400}">→ ${esc(u.target.you ? 'YOU' : u.target.name)}</span>`);
+    const plateColor = u.tapped ? '#7a7a7a' : u.kind === 'player' && u.reaction === 'hostile' ? '#c41f1f' : u.reaction === 'friendly' ? '#2aa52a' : u.reaction === 'neutral' ? '#d9b400' : '#c41f1f';
+    const np = `<div class="np"><span class="np-name out" style="color:${nameColor(u)}">${esc(displayName(u))}</span>${u.kind === 'npc' ? '' : `<span class="np-bar"><i style="width:${u.hp}%;background:${plateColor}"></i></span>`}</div>`;
+    const second = [u.kind === 'npc' ? u.type : kindText(u)];
+    if (u.player && u.player.guild) second.push(`<${u.player.guild}>`);
+    if (u.player && u.player.faction) second.push(u.player.faction);
+    return `${np}<div class="${tipClass(u)} banner"><div class="b-1">${bits.join('')}</div><div class="b-2">${esc(second.join(' · '))}</div></div><div class="silhouette" aria-hidden="true"></div>`;
+  }
+
+  const LOOKS = { whisper, glance, ledger, banner };
+  const LABEL = { whisper: 'Whisper', glance: 'Glance', ledger: 'Ledger', banner: 'Banner' };
+
+  // a scrap of the world with the tooltip in it
+  function stage(style, u) {
+    const biome = u.biome || '';
+    if (style === 'banner') {
+      if (u.player && u.player.far) {
+        return `<div class="stage cursor ${biome}">${CURSOR}${glance(u)}<p class="fallback">No nameplate to hang from (hovered on the party frame): Glance at the cursor instead.</p></div>`;
+      }
+      return `<div class="stage plate ${biome}">${banner(u)}</div>`;
+    }
+    return `<div class="stage cursor ${biome}">${CURSOR}${LOOKS[style](u)}</div>`;
+  }
+
+  // ------------------------------------------------------------ the four
+  const FOUR = [
+    ['whisper', 'Two short lines of text at the cursor.', 'Players who barely want a tooltip at all.', 'about 200 × 36', 'Level, name, YOU in red when it\'s after you, your quest count. Under it, short: rank and type, health, the target, guild for players. A health line along the bottom edge.'],
+    ['glance', 'A bar and two rows, for fighting.', 'Combat, grinding, dungeons.', '230 wide, 3 to 4 rows', 'Level, name and the quest ring; the bar; the target and the type. Guild and faction for players, the party\'s quest bars when you\'re grouped.'],
+    ['ledger', 'The full read.', 'Questing, towns, other players.', '254 wide', 'Built like the game\'s item tooltips, so it sits right next to them: everything, line by line, with the party\'s quest as a short table.'],
+    ['banner', 'Hangs under the nameplate.', 'Playing with nameplates on.', 'as wide as it needs', 'Your eyes are already on the creature. The nameplate shows name and health, so the Banner adds the rest: level, rank, quest, target, and the type (guild and faction for players).'],
+  ];
+  document.getElementById('four').innerHTML = FOUR.map(([k, tag, best, size, what]) => `
+    <article class="style"><h3>${LABEL[k]}</h3><p class="tag">${esc(tag)}</p>${stage(k, U.wolf)}
+      <dl><dt>For</dt><dd>${esc(best)}</dd><dt>Size</dt><dd>${esc(size)}</dd><dt>Shows</dt><dd>${esc(what)}</dd></dl></article>`).join('');
+
+  // ------------------------------------------------------------ every situation
+  document.getElementById('sits').innerHTML = SITS.map(([key, title, text]) => `
+    <section class="sit" aria-label="${esc(title)}"><header><h3>${esc(title)}</h3><p>${esc(text)}</p></header>
+      <div class="cells">${['whisper', 'glance', 'ledger', 'banner'].map(st => `<figure class="cell"><figcaption>${LABEL[st]}</figcaption>${stage(st, U[key])}</figure>`).join('')}</div></section>`).join('');
+
+  document.getElementById('rank-legend').innerHTML =
+    `<span>${ledgerMini('elite')}Elite</span><span>${ledgerMini('rare')}Rare</span><span>${SKULL(14, 'var(--con-red)')}Boss</span>`;
+  function ledgerMini(rank) {
+    return `<span style="position:relative;display:inline-block;width:26px;height:18px;border:1px solid ${rank === 'rare' ? 'var(--rare)' : 'var(--elite)'};background:var(--tip-bg);border-radius:2px;margin-left:6px">${ORN(rank).replace('class="orn"', 'class="orn" style="width:18px;height:18px;left:-7px;top:-7px"')}</span>`;
+  }
+
+  // ------------------------------------------------------------ the bench
+  const state = { style: 'ledger', unit: 'wolf', shift: false, combat: false };
+  const BENCH_UNITS = [['wolf', 'Quest wolf'], ['party', 'Party on the quest'], ['inn', 'Innkeeper'], ['enemy', 'Enemy player']];
+  const styleBox = document.getElementById('c-style'), unitBox = document.getElementById('c-unit');
+  styleBox.innerHTML = ['whisper', 'glance', 'ledger', 'banner'].map(k => `<button type="button" id="cs-${k}" data-style="${k}" aria-pressed="false">${LABEL[k]}</button>`).join('');
+  unitBox.innerHTML = BENCH_UNITS.map(([k, l]) => `<button type="button" id="cu-${k}" data-unit="${k}" aria-pressed="false">${esc(l)}</button>`).join('');
+  styleBox.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { state.style = b.dataset.style; render(); } });
+  unitBox.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { state.unit = b.dataset.unit; render(); } });
+  const shiftBtn = document.getElementById('c-shift'), combatBtn = document.getElementById('c-combat');
+  shiftBtn.addEventListener('click', () => { state.shift = !state.shift; render(); });
+  combatBtn.addEventListener('click', () => { state.combat = !state.combat; render(); });
+  // the real Shift key works too
+  window.addEventListener('keydown', e => { if (e.key === 'Shift' && !state.shift) { state.shift = true; render(); } });
+  window.addEventListener('keyup', e => { if (e.key === 'Shift' && state.shift) { state.shift = false; render(); } });
+
+  function render() {
+    let shown = state.style, why;
+    if (state.shift) { shown = 'ledger'; why = 'Shift is held, so the Ledger opens with everything. Let go and your style comes back.'; }
+    else if (state.combat && state.style === 'ledger') { shown = 'glance'; why = 'In combat the Ledger shrinks to Glance, so it covers less of the fight. It grows back when the fight ends.'; }
+    else why = `Your everyday style${state.combat ? ', unchanged in combat' : ''}. Hold Shift for the full Ledger.`;
+    styleBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.style === state.style)));
+    unitBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.unit === state.unit)));
+    shiftBtn.setAttribute('aria-pressed', String(state.shift));
+    combatBtn.setAttribute('aria-pressed', String(state.combat));
+    document.getElementById('c-why').textContent = `Showing ${LABEL[shown]}. ${why}`;
+    document.getElementById('c-stage').innerHTML = stage(shown, U[state.unit]);
+  }
+  render();
+})();
+</script>
